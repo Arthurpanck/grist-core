@@ -13,9 +13,9 @@
  *  en ajouter : il peut seulement re-styler les 3 thèmes existants.
  *
  *  Répartition :
- *    - « Light »                 -> thème MÉTROPOLE (section 3)
- *    - « Dark »                  -> Grist sombre de base, sans aucune modification
- *    - « Light (High Contrast) » -> Grist contraste élevé (natif)
+ *    - « Light »                 -> thème MÉTROPOLE (sections 1 et 3)
+ *    - « Dark »                  -> Grist de base, sans aucune modification
+ *    - « Light (High Contrast) » -> Grist de base, sans aucune modification
  *
  *  Par défaut, un nouvel utilisateur suit le réglage clair/sombre de son système :
  *  il obtient donc « Light » (Métropole) ou « Dark ».
@@ -27,13 +27,12 @@
 
 
 /* ============================================================================
- * 1. LIGHT ET HIGH CONTRAST (tous les thèmes sauf Dark)
- *    Logo Métropole, barres de défilement, écran de chargement.
- *    Rien ici ne s'applique au Dark, qui reste 100 % Grist (logo compris).
- *    Pour garder le logo Métropole en Dark aussi, déplacer les 3 variables
- *    --icon-GristLogo / --grist-theme-logo-* dans un bloc :root { ... }.
+ * 1. MÉTROPOLE : logo, barres de défilement, écran de chargement
+ *    S'applique à « Light » (formulaires compris) et à l'écran de chargement
+ *    d'un premier visiteur (thème pas encore connu). Ne s'applique ni au Dark
+ *    ni au High Contrast, qui restent 100 % Grist (logo compris).
  * ========================================================================= */
-:root:not([data-grist-theme="GristDark"]) {
+:root:not([data-grist-theme="GristDark"], [data-grist-theme="HighContrastLight"]) {
   /* Logo Métropole */
   --icon-GristLogo: url("ui-icons/Logo/GristLogo.png");
   --grist-theme-logo-bg: #FFF;
@@ -71,8 +70,8 @@
 
 
 /* ============================================================================
- * 2. DARK ET HIGH CONTRAST : thèmes Grist natifs
- *    Aucune surcharge de couleurs. Ajouter ici d'éventuelles retouches :
+ * 2. DARK ET HIGH CONTRAST : thèmes Grist de base
+ *    Aucune surcharge. Ajouter ici d'éventuelles retouches :
  *      :root[data-grist-theme="GristDark"]         { ... }
  *      :root[data-grist-theme="HighContrastLight"] { ... }
  * ========================================================================= */
@@ -88,9 +87,6 @@
  *  :not([data-grist-form]) : les formulaires publics utilisent toujours GristLight ;
  *  on les exclut pour qu'ils gardent leurs couleurs WCAG (section 4). Retirer ce
  *  :not(...) pour avoir des formulaires aux couleurs Métropole.
- *
- *  Pour mettre Métropole sur « Light (High Contrast) » à la place, remplacer
- *  "GristLight" par "HighContrastLight" dans le sélecteur ci-dessous.
  * ========================================================================= */
 :root[data-grist-theme="GristLight"]:not([data-grist-form]) {
   /* Couleurs */
