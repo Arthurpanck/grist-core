@@ -13,9 +13,10 @@
  *  en ajouter : il peut seulement re-styler les 3 thèmes existants.
  *
  *  Répartition :
- *    - « Light »                 -> thème MÉTROPOLE (sections 1 et 3)
- *    - « Dark »                  -> Grist de base, sans aucune modification
- *    - « Light (High Contrast) » -> Grist de base, sans aucune modification
+ *    - Les 3 thèmes              -> logo Métropole (section 1)
+ *    - « Light »                 -> thème MÉTROPOLE (sections 2 et 4)
+ *    - « Dark »                  -> Grist de base (seul le logo change)
+ *    - « Light (High Contrast) » -> Grist de base (seul le logo change)
  *
  *  Par défaut, un nouvel utilisateur suit le réglage clair/sombre de son système :
  *  il obtient donc « Light » (Métropole) ou « Dark ».
@@ -27,34 +28,37 @@
 
 
 /* ============================================================================
- * 1. MÉTROPOLE : logo, barres de défilement, écran de chargement
- *    S'applique à « Light » (formulaires compris) et à l'écran de chargement
- *    d'un premier visiteur (thème pas encore connu). Ne s'applique ni au Dark
- *    ni au High Contrast, qui restent 100 % Grist (logo compris).
+ * 1. LOGO MÉTROPOLE : les 3 thèmes (Light, Dark, High Contrast)
  * ========================================================================= */
-:root:not([data-grist-theme="GristDark"], [data-grist-theme="HighContrastLight"]) {
-  /* Logo Métropole */
+:root {
   --icon-GristLogo: url("ui-icons/Logo/GristLogo.png");
   --grist-theme-logo-bg: #FFF;
   --grist-theme-logo-size: 22px 22px;
+}
 
-  /* Barres de défilement */
+/* Logo de l'écran de chargement */
+.grist-logo {
+  --color-logo-row: #000000;
+  --color-logo-col: #e60027;
+  --color-logo-cell: #929299;
+  background: #fff !important;
+  border-radius: 22px !important;
+  padding: 20px 24px !important;
+  border: 1px solid #ccc !important;
+}
+
+
+/* ============================================================================
+ * 2. LIGHT MÉTROPOLE : barres de défilement et calendrier
+ *    Uniquement « Light » (formulaires compris) ; le Dark et le High Contrast
+ *    gardent les barres de défilement de Grist.
+ * ========================================================================= */
+:root[data-grist-theme="GristLight"] {
   --scroll-bar-fg: #A8A8A8;
   --scroll-bar-hover-fg: #8F8F8F;
   --scroll-bar-active-fg: #7C7C7C;
   --scroll-bar-bg: #FFF;
   scrollbar-color: var(--scroll-bar-fg) var(--scroll-bar-bg);
-
-  /* Logo de l'écran de chargement */
-  .grist-logo {
-    --color-logo-row: #000000;
-    --color-logo-col: #e60027;
-    --color-logo-cell: #929299;
-    background: #fff !important;
-    border-radius: 22px !important;
-    padding: 20px 24px !important;
-    border: 1px solid #ccc !important;
-  }
 
   /* Widget calendrier.
      N'a d'effet que si le widget charge lui-même ce fichier : les widgets
@@ -70,22 +74,22 @@
 
 
 /* ============================================================================
- * 2. DARK ET HIGH CONTRAST : thèmes Grist de base
- *    Aucune surcharge. Ajouter ici d'éventuelles retouches :
+ * 3. DARK ET HIGH CONTRAST : thèmes Grist de base (hors logo)
+ *    Aucune autre surcharge. Ajouter ici d'éventuelles retouches :
  *      :root[data-grist-theme="GristDark"]         { ... }
  *      :root[data-grist-theme="HighContrastLight"] { ... }
  * ========================================================================= */
 
 
 /* ============================================================================
- * 3. THÈME MÉTROPOLE : surcharge du thème « Light » (GristLight)
+ * 4. THÈME MÉTROPOLE : surcharge du thème « Light » (GristLight)
  *
  *  Repris du custom.css Métropole d'origine (conçu pour GristLight). Les
  *  surcharges ajoutées pour la base sombre ont été retirées : sur une base claire,
  *  Grist les calcule déjà à partir des couleurs principales ci-dessous.
  *
  *  :not([data-grist-form]) : les formulaires publics utilisent toujours GristLight ;
- *  on les exclut pour qu'ils gardent leurs couleurs WCAG (section 4). Retirer ce
+ *  on les exclut pour qu'ils gardent leurs couleurs WCAG (section 5). Retirer ce
  *  :not(...) pour avoir des formulaires aux couleurs Métropole.
  * ========================================================================= */
 :root[data-grist-theme="GristLight"]:not([data-grist-form]) {
@@ -222,7 +226,7 @@
 
 
 /* ============================================================================
- * 4. FORMULAIRES : couleurs conformes WCAG
+ * 5. FORMULAIRES : couleurs conformes WCAG
  *    Les formulaires utilisent toujours le thème Light (exclu de Métropole
  *    ci-dessus) ; on y applique les verts du thème HighContrastLight et des
  *    bordures de champs plus contrastées.
