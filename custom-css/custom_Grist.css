@@ -13,8 +13,8 @@
  *  en ajouter : il peut seulement re-styler les 3 thèmes existants.
  *
  *  Répartition :
- *    - « Light »                 -> thème MÉTROPOLE (section 4)
- *    - « Dark »                  -> Grist sombre classique (natif)
+ *    - « Light »                 -> thème MÉTROPOLE (section 3)
+ *    - « Dark »                  -> Grist sombre de base, sans aucune modification
  *    - « Light (High Contrast) » -> Grist contraste élevé (natif)
  *
  *  Par défaut, un nouvel utilisateur suit le réglage clair/sombre de son système :
@@ -27,72 +27,66 @@
 
 
 /* ============================================================================
- * 1. COMMUN À TOUS LES THÈMES
+ * 1. LIGHT ET HIGH CONTRAST (tous les thèmes sauf Dark)
+ *    Logo Métropole, barres de défilement, écran de chargement.
+ *    Rien ici ne s'applique au Dark, qui reste 100 % Grist (logo compris).
+ *    Pour garder le logo Métropole en Dark aussi, déplacer les 3 variables
+ *    --icon-GristLogo / --grist-theme-logo-* dans un bloc :root { ... }.
  * ========================================================================= */
-:root {
+:root:not([data-grist-theme="GristDark"]) {
   /* Logo Métropole */
   --icon-GristLogo: url("ui-icons/Logo/GristLogo.png");
   --grist-theme-logo-bg: #FFF;
   --grist-theme-logo-size: 22px 22px;
 
-  /* Les couleurs viennent des variables --scroll-bar-*, que Grist adapte
-     à chaque thème (sombres en Dark), et que la section 2 retouche en clair. */
-  scrollbar-color: var(--scroll-bar-fg) var(--scroll-bar-bg);
-}
-
-/* Widget calendrier.
-   N'a d'effet que si le widget charge lui-même ce fichier : les widgets
-   personnalisés tournent dans une iframe, que le CSS de Grist n'atteint pas. */
-#calendar-container {
-  --grist-theme-primary: #f3ef04;
-}
-.toastui-calendar-week-view .toastui-calendar-holiday-sun,
-.toastui-calendar-day-view .toastui-calendar-holiday-sun {
-  color: yellow !important;
-}
-
-/* Logo de l'écran de chargement */
-.grist-logo {
-  --color-logo-row: #000000;
-  --color-logo-col: #e60027;
-  --color-logo-cell: #929299;
-  background: #fff !important;
-  border-radius: 22px !important;
-  padding: 20px 24px !important;
-  border: 1px solid #ccc !important;
-}
-
-
-/* ============================================================================
- * 2. THÈMES CLAIRS UNIQUEMENT (Métropole et High Contrast)
- *    Avant, ces valeurs étaient dans :root et s'appliquaient aussi au Dark
- *    (barre de défilement blanche en mode sombre).
- * ========================================================================= */
-:root[data-grist-appearance="light"] {
+  /* Barres de défilement */
   --scroll-bar-fg: #A8A8A8;
   --scroll-bar-hover-fg: #8F8F8F;
   --scroll-bar-active-fg: #7C7C7C;
   --scroll-bar-bg: #FFF;
+  scrollbar-color: var(--scroll-bar-fg) var(--scroll-bar-bg);
+
+  /* Logo de l'écran de chargement */
+  .grist-logo {
+    --color-logo-row: #000000;
+    --color-logo-col: #e60027;
+    --color-logo-cell: #929299;
+    background: #fff !important;
+    border-radius: 22px !important;
+    padding: 20px 24px !important;
+    border: 1px solid #ccc !important;
+  }
+
+  /* Widget calendrier.
+     N'a d'effet que si le widget charge lui-même ce fichier : les widgets
+     personnalisés tournent dans une iframe, que le CSS de Grist n'atteint pas. */
+  #calendar-container {
+    --grist-theme-primary: #f3ef04;
+  }
+  .toastui-calendar-week-view .toastui-calendar-holiday-sun,
+  .toastui-calendar-day-view .toastui-calendar-holiday-sun {
+    color: yellow !important;
+  }
 }
 
 
 /* ============================================================================
- * 3. DARK ET HIGH CONTRAST : thèmes Grist natifs
- *    Rien à surcharger. Ajouter ici d'éventuelles retouches :
+ * 2. DARK ET HIGH CONTRAST : thèmes Grist natifs
+ *    Aucune surcharge de couleurs. Ajouter ici d'éventuelles retouches :
  *      :root[data-grist-theme="GristDark"]         { ... }
  *      :root[data-grist-theme="HighContrastLight"] { ... }
  * ========================================================================= */
 
 
 /* ============================================================================
- * 4. THÈME MÉTROPOLE : surcharge du thème « Light » (GristLight)
+ * 3. THÈME MÉTROPOLE : surcharge du thème « Light » (GristLight)
  *
  *  Repris du custom.css Métropole d'origine (conçu pour GristLight). Les
  *  surcharges ajoutées pour la base sombre ont été retirées : sur une base claire,
  *  Grist les calcule déjà à partir des couleurs principales ci-dessous.
  *
  *  :not([data-grist-form]) : les formulaires publics utilisent toujours GristLight ;
- *  on les exclut pour qu'ils gardent leurs couleurs WCAG (section 5). Retirer ce
+ *  on les exclut pour qu'ils gardent leurs couleurs WCAG (section 4). Retirer ce
  *  :not(...) pour avoir des formulaires aux couleurs Métropole.
  *
  *  Pour mettre Métropole sur « Light (High Contrast) » à la place, remplacer
@@ -232,7 +226,7 @@
 
 
 /* ============================================================================
- * 5. FORMULAIRES : couleurs conformes WCAG
+ * 4. FORMULAIRES : couleurs conformes WCAG
  *    Les formulaires utilisent toujours le thème Light (exclu de Métropole
  *    ci-dessus) ; on y applique les verts du thème HighContrastLight et des
  *    bordures de champs plus contrastées.
