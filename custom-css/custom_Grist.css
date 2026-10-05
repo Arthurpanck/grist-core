@@ -3,37 +3,40 @@
  *  custom_Grist.css : thème Métropole pour Grist (>= 1.6)
  * ============================================================================
  *
- *  Fonctionnement (cf. grist-core app/client/ui2018/theme.ts) :
  *  Grist pose deux attributs sur <html>, qu'on peut cibler en CSS :
  *    - data-grist-theme      = GristLight | GristDark | HighContrastLight
  *    - data-grist-appearance = light | dark
- *
- *  Les entrées du menu « Profil > Apparence » sont codées en dur dans grist-core
- *  (app/common/ThemePrefs.ts, app/client/ui/ThemeConfig.ts). Le CSS ne peut pas
- *  en ajouter : il peut seulement re-styler les 3 thèmes existants.
+ *  Les entrées du menu « Profil > Apparence » sont codées en dur dans grist-core :
+ *  le CSS peut seulement re-styler les 3 thèmes existants.
  *
  *  Répartition :
- *    - Les 3 thèmes              -> logo Métropole (section 1)
- *    - « Light »                 -> thème MÉTROPOLE (sections 2 et 4)
- *    - « Dark »                  -> Grist de base (seul le logo change)
- *    - « Light (High Contrast) » -> Grist de base (seul le logo change)
+ *    - Les 3 thèmes                -> logo Métropole (section 1)
+ *    - « Clair » (GristLight)      -> thème MÉTROPOLE (sections 2 et 4)
+ *    - « Sombre » (GristDark)      -> Grist de base (seul le logo change)
+ *    - « Clair (contraste élevé) » -> Grist de base (seul le logo change)
  *
- *  Par défaut, un nouvel utilisateur suit le réglage clair/sombre de son système :
- *  il obtient donc « Light » (Métropole) ou « Dark ».
+ *  Où mettre quoi :
+ *    - les VARIABLES (--grist-theme-*, ...) dans @layer grist-custom : c'est ce que
+ *      Grist relit pour les transmettre aux widgets personnalisés (calendrier, etc.,
+ *      cf. app/client/lib/customCssParser.ts). Hors de cette couche, les widgets
+ *      gardent les couleurs de base ;
+ *    - les RÈGLES sur des éléments (.viewsection_title, ...) hors couche, pour
+ *      qu'elles l'emportent sur les styles de Grist.
  *
  *  Côté serveur : APP_STATIC_INCLUDE_CUSTOM_CSS=true, et « themes » ne doit pas
  *  être listé dans GRIST_HIDE_UI_ELEMENTS.
  * ============================================================================
  */
 
-
 /* ============================================================================
- * 1. LOGO MÉTROPOLE : les 3 thèmes (Light, Dark, High Contrast)
+ * 1. LOGO MÉTROPOLE : les 3 thèmes
  * ========================================================================= */
-:root {
-  --icon-GristLogo: url("ui-icons/Logo/GristLogo.png");
-  --grist-theme-logo-bg: #FFF;
-  --grist-theme-logo-size: 22px 22px;
+@layer grist-custom {
+  :root {
+    --icon-GristLogo: url("ui-icons/Logo/GristLogo.png");
+    --grist-theme-logo-bg: #FFF;
+    --grist-theme-logo-size: 22px 22px;
+  }
 }
 
 /* Logo de l'écran de chargement */
@@ -49,138 +52,135 @@
 
 
 /* ============================================================================
- * 2. LIGHT MÉTROPOLE : barres de défilement et calendrier
- *    Uniquement « Light » (formulaires compris) ; le Dark et le High Contrast
- *    gardent les barres de défilement de Grist.
+ * 2. MÉTROPOLE : barres de défilement et calendrier (« Clair », formulaires compris)
  * ========================================================================= */
-:root[data-grist-theme="GristLight"] {
-  --scroll-bar-fg: #A8A8A8;
-  --scroll-bar-hover-fg: #8F8F8F;
-  --scroll-bar-active-fg: #7C7C7C;
-  --scroll-bar-bg: #FFF;
-  scrollbar-color: var(--scroll-bar-fg) var(--scroll-bar-bg);
+@layer grist-custom {
+  :root[data-grist-theme="GristLight"] {
+    --scroll-bar-fg: #A8A8A8;
+    --scroll-bar-hover-fg: #8F8F8F;
+    --scroll-bar-active-fg: #7C7C7C;
+    --scroll-bar-bg: #FFF;
+    scrollbar-color: var(--scroll-bar-fg) var(--scroll-bar-bg);
+  }
+}
 
-  /* Widget calendrier.
-     N'a d'effet que si le widget charge lui-même ce fichier : les widgets
-     personnalisés tournent dans une iframe, que le CSS de Grist n'atteint pas. */
-  #calendar-container {
-    --grist-theme-primary: #f3ef04;
-  }
-  .toastui-calendar-week-view .toastui-calendar-holiday-sun,
-  .toastui-calendar-day-view .toastui-calendar-holiday-sun {
-    color: yellow !important;
-  }
+/* Widget calendrier : n'a d'effet que si le widget charge lui-même ce fichier. */
+:root[data-grist-theme="GristLight"] #calendar-container {
+  --grist-theme-primary: #f3ef04;
+}
+:root[data-grist-theme="GristLight"] :is(.toastui-calendar-week-view, .toastui-calendar-day-view) .toastui-calendar-holiday-sun {
+  color: yellow !important;
 }
 
 
 /* ============================================================================
- * 3. DARK ET HIGH CONTRAST : thèmes Grist de base (hors logo)
- *    Aucune autre surcharge. Ajouter ici d'éventuelles retouches :
+ * 3. SOMBRE ET CONTRASTE ÉLEVÉ : thèmes Grist de base (hors logo)
+ *    Ajouter ici d'éventuelles retouches :
  *      :root[data-grist-theme="GristDark"]         { ... }
  *      :root[data-grist-theme="HighContrastLight"] { ... }
  * ========================================================================= */
 
 
 /* ============================================================================
- * 4. THÈME MÉTROPOLE : surcharge du thème « Light » (GristLight)
+ * 4. THÈME MÉTROPOLE : surcharge du thème « Clair » (GristLight)
  *
- *  Repris du custom.css Métropole d'origine (conçu pour GristLight). Les
- *  surcharges ajoutées pour la base sombre ont été retirées : sur une base claire,
- *  Grist les calcule déjà à partir des couleurs principales ci-dessous.
- *
+ *  Repris du custom.css Métropole d'origine (conçu pour GristLight).
  *  :not([data-grist-form]) : les formulaires publics utilisent toujours GristLight ;
- *  on les exclut pour qu'ils gardent leurs couleurs WCAG (section 5). Retirer ce
- *  :not(...) pour avoir des formulaires aux couleurs Métropole.
+ *  on les exclut pour qu'ils gardent leurs couleurs WCAG (section 5).
  * ========================================================================= */
+@layer grist-custom {
+  :root[data-grist-theme="GristLight"]:not([data-grist-form]) {
+    /* Couleurs */
+    --grist-theme-body: #000000; /* texte principal */
+    --grist-theme-emphasis: var(--grist-theme-black); /* texte accentué */
+    --grist-theme-very-light: var(--grist-theme-white); /* texte toujours clair */
+
+    --grist-theme-bg-default: var(--grist-theme-white); /* fond par défaut */
+    --grist-theme-bg-secondary: #f7f7f7; /* fond des panneaux */
+    --grist-theme-bg-tertiary: #60002826; /* bordures (split), en-têtes de table, survols */
+    --grist-theme-bg-emphasis: #E60027; /* fond des éléments sélectionnés */
+
+    --grist-theme-decoration: #d9d9d9; /* bordures */
+    --grist-theme-decoration-secondary: #60002826;
+    --grist-theme-decoration-tertiary: #60002826;
+
+    --grist-theme-primary: #000; /* couleur d'accent des éléments interactifs */
+    --grist-theme-primary-muted: #929299; /* variante, surtout au survol */
+    --grist-theme-primary-dim: #E60027;
+    --grist-theme-primary-emphasis: #E60027;
+    /* Ajouté : sinon reste vert (bordure du widget actif non focalisé) */
+    --grist-theme-primary-translucent: #00000080;
+
+    --grist-theme-secondary: #929299; /* texte secondaire, contrôles désactivés */
+    --grist-theme-secondary-muted: #777777;
+
+    --grist-theme-token-cursor: var(--grist-theme-primary); /* curseur dans les widgets */
+    --grist-theme-token-cursor-inactive: #60002826;
+    --grist-theme-token-selection: #60002826; /* fond des cellules sélectionnées */
+    --grist-theme-token-selection-opaque: #E60027;
+    --grist-theme-token-selection-darker-opaque: #E60027;
+    --grist-theme-token-selection-darker: #60002826;
+    --grist-theme-token-selection-darkest: #60002826;
+
+    --grist-theme-token-hover: #bfbfbf;
+    --grist-theme-backdrop: #262633e5; /* fond des modales */
+
+    --grist-theme-error: #d0021b;
+    --grist-theme-error-light: #f66;
+    --grist-theme-warning: #dd962c;
+    --grist-theme-warning-light: #f9ae41;
+    --grist-theme-info: #3b82f6;
+    --grist-theme-info-light: #87b2f9;
+    --grist-theme-black: #000;
+    --grist-theme-white: #fff;
+
+    /* Bandeau d'annonce (accueil) */
+    --grist-theme-announcement-popup-bg: #E5E5E5;
+
+    /* Bordures */
+    --color-border-light: #ddd;
+    --color-border-medium: #bbb;
+    --grist-theme-page-panels-border: #d9d9d999;
+    --grist-control-border: 1px solid black;
+    --grist-theme-control-border: 1px solid black;
+
+    --grist-theme-accent-icon: #E60027;
+    --grist-theme-link: #E60027;
+
+    /* Ligne sélectionnée (multi-vues) */
+    --grist-theme-selection: #60002826;
+
+    /* Nouvelle ligne / en-têtes sélectionnés */
+    --grist-theme-table-add-new-bg: #fff7f9;
+    --grist-theme-selection-header: #E5E5E5;
+    --grist-theme-table-header-selected-bg: #E5E5E5;
+
+    /* Icônes contextuelles */
+    --grist-theme-control-fg: #E60027;
+    --grist-theme-top-bar-button-primary-fg: #E60027;
+    --grist-theme-right-panel-tab-selected-icon: #E60027;
+    --grist-theme-modal-backdrop-close-button-hover-fg: #E60027;
+
+    /* Cercle « + » du bouton Nouveau */
+    --grist-theme-add-new-circle-hover-bg: #000;
+
+    /* Colonne de droite et calendrier (groupes de boutons) */
+    --grist-theme-button-group-selected-border: #000;
+    --grist-theme-button-group-selected-bg: #60002826;
+
+    /* Fiches et listes de fiches */
+    --grist-theme-card-compact-widget-bg: #fff;
+    --grist-theme-card-blocks-bg: #E8E8E8;
+
+    /* Permissions avancées */
+    --grist-theme-access-rules-formula-editor-bg-disabled: #bbb;
+
+    /* Ajouté : seule couleur verte restante de GristLight (lien dans l'autocomplétion des formules) */
+    --grist-theme-ace-autocomplete-link-highlighted: #E60027;
+  }
+}
+
 :root[data-grist-theme="GristLight"]:not([data-grist-form]) {
-  /* Couleurs */
-  --grist-theme-body: #000000; /* texte principal */
-  --grist-theme-emphasis: var(--grist-theme-black); /* texte accentué */
-  --grist-theme-very-light: var(--grist-theme-white); /* texte toujours clair */
-
-  --grist-theme-bg-default: var(--grist-theme-white); /* fond par défaut */
-  --grist-theme-bg-secondary: #f7f7f7; /* fond des panneaux */
-  --grist-theme-bg-tertiary: #60002826; /* bordures (split), en-têtes de table, survols */
-  --grist-theme-bg-emphasis: #E60027; /* fond des éléments sélectionnés */
-
-  --grist-theme-decoration: #d9d9d9; /* bordures */
-  --grist-theme-decoration-secondary: #60002826;
-  --grist-theme-decoration-tertiary: #60002826;
-
-  --grist-theme-primary: #000; /* couleur d'accent des éléments interactifs */
-  --grist-theme-primary-muted: #929299; /* variante, surtout au survol */
-  --grist-theme-primary-dim: #E60027;
-  --grist-theme-primary-emphasis: #E60027;
-  /* Ajouté : sinon reste vert (bordure du widget actif non focalisé) */
-  --grist-theme-primary-translucent: #00000080;
-
-  --grist-theme-secondary: #929299; /* texte secondaire, contrôles désactivés */
-  --grist-theme-secondary-muted: #777777;
-
-  --grist-theme-token-cursor: var(--grist-theme-primary); /* curseur dans les widgets */
-  --grist-theme-token-cursor-inactive: #60002826;
-  --grist-theme-token-selection: #60002826; /* fond des cellules sélectionnées */
-  --grist-theme-token-selection-opaque: #E60027;
-  --grist-theme-token-selection-darker-opaque: #E60027;
-  --grist-theme-token-selection-darker: #60002826;
-  --grist-theme-token-selection-darkest: #60002826;
-
-  --grist-theme-token-hover: #bfbfbf;
-  --grist-theme-backdrop: #262633e5; /* fond des modales */
-
-  --grist-theme-error: #d0021b;
-  --grist-theme-error-light: #f66;
-  --grist-theme-warning: #dd962c;
-  --grist-theme-warning-light: #f9ae41;
-  --grist-theme-info: #3b82f6;
-  --grist-theme-info-light: #87b2f9;
-  --grist-theme-black: #000;
-  --grist-theme-white: #fff;
-
-  /* Bandeau d'annonce (accueil) */
-  --grist-theme-announcement-popup-bg: #E5E5E5;
-
-  /* Bordures */
-  --color-border-light: #ddd;
-  --color-border-medium: #bbb;
-  --grist-theme-page-panels-border: #d9d9d999;
-  --grist-control-border: 1px solid black;
-  --grist-theme-control-border: 1px solid black;
-
-  --grist-theme-accent-icon: #E60027;
-  --grist-theme-link: #E60027;
-
-  /* Ligne sélectionnée (multi-vues) */
-  --grist-theme-selection: #60002826;
-
-  /* Nouvelle ligne / en-têtes sélectionnés */
-  --grist-theme-table-add-new-bg: #fff7f9;
-  --grist-theme-selection-header: #E5E5E5;
-  --grist-theme-table-header-selected-bg: #E5E5E5;
-
-  /* Icônes contextuelles */
-  --grist-theme-control-fg: #E60027;
-  --grist-theme-top-bar-button-primary-fg: #E60027;
-  --grist-theme-right-panel-tab-selected-icon: #E60027;
-  --grist-theme-modal-backdrop-close-button-hover-fg: #E60027;
-
-  /* Cercle « + » du bouton Nouveau */
-  --grist-theme-add-new-circle-hover-bg: #000;
-
-  /* Colonne de droite et calendrier (groupes de boutons) */
-  --grist-theme-button-group-selected-border: #000;
-  --grist-theme-button-group-selected-bg: #60002826;
-
-  /* Fiches et listes de fiches */
-  --grist-theme-card-compact-widget-bg: #fff;
-  --grist-theme-card-blocks-bg: #E8E8E8;
-
-  /* Permissions avancées */
-  --grist-theme-access-rules-formula-editor-bg-disabled: #bbb;
-
-  /* Ajouté : seule couleur verte restante de GristLight (lien dans l'autocomplétion des formules) */
-  --grist-theme-ace-autocomplete-link-highlighted: #E60027;
-
   /* Titre des vues */
   .viewsection_title {
     color: #E60027 !important;
@@ -224,18 +224,18 @@
   }
 }
 
-
 /* ============================================================================
  * 5. FORMULAIRES : couleurs conformes WCAG
- *    Les formulaires utilisent toujours le thème Light (exclu de Métropole
- *    ci-dessus) ; on y applique les verts du thème HighContrastLight et des
- *    bordures de champs plus contrastées.
+ *    Les formulaires publics utilisent toujours le thème « Light » ; ils sont exclus de Métropole
+ *    et reçoivent les verts du thème HighContrastLight.
  * ========================================================================= */
-:root[data-grist-form] {
-  --grist-theme-primary: #0f7b51;
-  --grist-theme-primary-muted: #196C47;
-  --grist-theme-primary-dim: #196C47;
-  --grist-theme-secondary: #717178;
+@layer grist-custom {
+  :root[data-grist-form] {
+    --grist-theme-primary: #0f7b51;
+    --grist-theme-primary-muted: #196C47;
+    --grist-theme-primary-dim: #196C47;
+    --grist-theme-secondary: #717178;
+  }
 }
 
 /* On cible des éléments précis : la variable dark-grey sert aussi ailleurs
