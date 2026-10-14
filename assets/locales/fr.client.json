@@ -76,7 +76,10 @@
         "Permission to access the document in full by unrestricted users": "Permission d'accéder à l'entièreté du document pour les utilisateurs non soumis à une permission avancée",
         "Restrict non-Owners from copying or downloading the full document. Note: this only affects users without read restrictions, since others will be restricted regardless of this setting.": "Empêche les non-Propriétaires de copier ou télécharger l'entièreté du document. N.B. : cela n'affecte que les utilisateurs sans restriction de lecture, comme les autres seront déjà empêchés sans tenir compte de ce réglage.",
         "Special rules for templates": "Règle spéciale pour les modèles",
-        "This options should be off if Editors' access is to be limited. ": "Cette option ne devrait pas être activée si les accès des Éditeurs doivent être limités. "
+        "This options should be off if Editors' access is to be limited. ": "Cette option ne devrait pas être activée si les accès des Éditeurs doivent être limités. ",
+        "Name": "Nom",
+        "[Select Table]": "[Sélectionner une table]",
+        "[Select Column]": "[Sélectionner une colonne]"
     },
     "AccountPage": {
         "Account settings": "Paramètres du compte",
@@ -278,7 +281,10 @@
         "Pin filter": "Épingler le filtre",
         "Sort alphabetically (current: sorted by number of occurrences)": "Trier par ordre alphabétique (actuellement : trié par nombre d'occurrences)",
         "Sort by number of occurrences (current: sorted alphabetically)": "Trier par nombre d'occurrences (actuellement : trié par ordre alphabétique)",
-        "Unpin filter": "Désépingler le filtre"
+        "Unpin filter": "Désépingler le filtre",
+        "More": "Plus",
+        "Close": "Fermer",
+        "Cancel": "Annuler"
     },
     "CustomSectionConfig": {
         "Add": "Ajouter",
@@ -321,7 +327,9 @@
         "{{action}} Record Card": "{{action}} la vue fiche",
         "Record Card": "Vue fiche",
         "Remove table": "Supprimer la table",
-        "Record Card Disabled": "Vue fiche désactivée"
+        "Record Card Disabled": "Vue fiche désactivée",
+        "Table ID: ": "ID de table : ",
+        "Rows: ": "Lignes : "
     },
     "DocHistory": {
         "Activity": "Activité",
@@ -513,7 +521,9 @@
         "Name for new table": "Nom de la nouvelle table",
         "Instead of duplicating tables, it's usually better to segment data using linked views. {{link}}": "Au lieu de dupliquer les tables, il est généralement préférable de segmenter les données en utilisant des vues liées. {{link}}",
         "Copy all data in addition to the table structure.": "Copier toutes les données en plus de la structure de la table.",
-        "Only the document default access rules will apply to the copy.": "Seules les règles d'accès par défaut du document s’appliqueront à la copie."
+        "Only the document default access rules will apply to the copy.": "Seules les règles d'accès par défaut du document s’appliqueront à la copie.",
+        "Duplicate Table": "Dupliquer la table",
+        "Read More.": "En savoir plus."
     },
     "ExampleInfo": {
         "Lightweight CRM": "CRM léger",
@@ -661,7 +671,12 @@
         "go to webhook settings": "Aller aux paramétrages des points d’ancrage Web",
         "New changes are temporarily suspended. Webhooks queue overflowed. Please check webhooks settings, remove invalid webhooks, and clean the queue.": "Les nouvelles modifications sont temporairement suspendues. La file d'attente des points d'ancrage est saturée. Veuillez vérifier les paramètres des points d'ancrage , supprimer les points d'ancrage non valides et nettoyer la file d'attente.",
         "Import from Airtable": "Importer depuis Airtable",
-        "{{title}} widget": "vue {{title}}"
+        "{{title}} widget": "vue {{title}}",
+        "Link copied to clipboard": "Lien copié dans le presse-papiers",
+        "Document History": "Historique du document",
+        "Table name": "Nom de la table",
+        "Create": "Créer",
+        "Default table name": "Nom de table par défaut"
     },
     "HomeIntro": {
         "Sign up": "S'inscrire",
@@ -733,7 +748,8 @@
         "Source column": "Colonne source",
         "Import options": "Options d'importation",
         "Cancel": "Annuler",
-        "Import": "Importer"
+        "Import": "Importer",
+        "Apply Formula": "Appliquer une formule"
     },
     "LeftPanelCommon": {
         "Help Center": "Centre d'aide",
@@ -829,7 +845,10 @@
     "PermissionsWidget": {
         "Allow all": "Tout autoriser",
         "Deny all": "Tout refuser",
-        "Read only": "Lecture seule"
+        "Read only": "Lecture seule",
+        "No Effect": "Aucun effet",
+        "Clear": "Effacer",
+        "Custom": "Personnalisé"
     },
     "PluginScreen": {
         "Import failed: ": "Échec de l'importation : "
@@ -915,7 +934,9 @@
         "Use as table headers": "Utiliser en tant qu'entêtes de table"
     },
     "SelectionSummary": {
-        "Copied to clipboard": "Copié dans le presse-papier"
+        "Copied to clipboard": "Copié dans le presse-papier",
+        "Sum": "Somme",
+        "Count": "Nombre"
     },
     "ShareMenu": {
         "Back to current": "Retour à la version active",
@@ -1016,7 +1037,9 @@
         "Current field ": "Champ actif ",
         "OK": "OK",
         "Cancel": "Annuler",
-        "Close": "Fermer"
+        "Close": "Fermer",
+        "(data cleaning)": "(nettoyage des données)",
+        "(except formulas)": "(sauf les formules)"
     },
     "TypeTransform": {
         "Apply": "Appliquer",
@@ -1033,7 +1056,8 @@
         "In full": "Tous les accès",
         "View & edit": "Lecture et écriture",
         "View only": "Lecture seule",
-        "None": "Aucun"
+        "None": "Aucun",
+        "no access": "aucun accès"
     },
     "ValidationPanel": {
         "Rule {{length}}": "Règle {{length}}",
@@ -1117,7 +1141,10 @@
     },
     "duplicatePage": {
         "Note that this does not copy data, but creates another view of the same data.": "Notez que cette opération ne duplique pas les données, mais crée une autre page avec les mêmes données.",
-        "Duplicate page {{pageName}}": "Dupliquer la page {{pageName}}"
+        "Duplicate page {{pageName}}": "Dupliquer la page {{pageName}}",
+        "Duplicate page": "Dupliquer la page",
+        "Save": "Enregistrer",
+        "Name": "Nom"
     },
     "errorPages": {
         "Access denied{{suffix}}": "Accès refusé{{suffix}}",
@@ -1335,7 +1362,7 @@
     "ACLUsers": {
         "Example Users": "Utilisateurs tests",
         "Users from table": "Utilisateurs de la table d'appairage",
-        "View as": "Voir en tant que",
+        "View as": "Afficher en tant que",
         "Other users from table": "Autres utilisateurs de la table",
         "Shared users": "Utilisateurs partagés"
     },
@@ -1376,7 +1403,7 @@
         "Errors in {{numErrors}} of {{numCells}} cells": "Erreur dans {{numErrors}} des {{numCells}} cellules",
         "editingFormula is required": "editingFormula est nécessaire",
         "Enter formula or {{button}}.": "Saisir la formule ou {{button}}.",
-        "Enter formula.": "Saisir la formule.",
+        "Enter formula.": "Saisir une formule.",
         "Expand Editor": "Élargir l'éditeur",
         "use AI Assistant": "Utiliser l'assistance IA"
     },
@@ -1499,7 +1526,8 @@
     },
     "DescriptionConfig": {
         "DESCRIPTION": "DESCRIPTION",
-        "Set description": "Mettre une description"
+        "Set description": "Mettre une description",
+        "Enter description": "Saisir une description"
     },
     "PagePanels": {
         "Open creator panel": "Ouvrir le panneau de création",
@@ -1776,7 +1804,8 @@
         "Unmapped fields": "Champs non utilisés",
         "Header": "Titre",
         "New question": "Nouvelle question",
-        "More": "Plus"
+        "More": "Plus",
+        "Hide": "Masquer"
     },
     "UnmappedFieldsConfig": {
         "Mapped": "Utilisé",
@@ -2421,7 +2450,8 @@
     },
     "AttachmentsWidget": {
         "Uploading, please wait…": "En cours de téléversement, merci de patienter…",
-        "Image": "Image"
+        "Image": "Image",
+        "Size": "Taille"
     },
     "AttachmentsEditor": {
         "Add": "Ajouter",
@@ -3422,5 +3452,32 @@
         "You've asked for this.": "Vous avez demandé cela.",
         "{{count}} people have asked for this._one": "{{count}} personnes ont demandé cela.",
         "{{count}} people have asked for this._other": "{{count}} personnes ont demandé cela."
+    },
+    "ACLColumnList": {
+        "[Add Column]": "[Ajouter une colonne]"
+    },
+    "Submit": {
+        "Submit": "Envoyer"
+    },
+    "DateTextBox": {
+        "Mixed format": "Formats différents",
+        "Date Format": "Format de date"
+    },
+    "DateTimeTextBox": {
+        "Mixed format": "Formats différents",
+        "Time Format": "Format de l’heure",
+        "Timezone": "Fuseau horaire"
+    },
+    "ColumnFilterCalendarView": {
+        "← List view": "← Vue liste",
+        "Today": "Aujourd’hui"
+    },
+    "MultiUserManager": {
+        "Invite Users": "Inviter des utilisateurs",
+        "Access:": "Accès :",
+        "Confirm": "Confirmer",
+        "Cancel": "Annuler",
+        "Enter email addresses, one per line or separated by commas": "Saisissez les adresses e-mail, une par ligne ou séparées par des virgules",
+        "At least one email is invalid": "Au moins une adresse e-mail est invalide"
     }
 }
