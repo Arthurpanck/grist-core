@@ -23,6 +23,7 @@
  * values.
  */
 
+import { parseCustomWidgetAllowedUrls } from "app/common/CustomWidget";
 import { COMMUNITY_EDITION, FULL_EDITION, GristEdition } from "app/common/gristUrls";
 import { isAffirmative } from "app/common/gutil";
 import { StringUnion } from "app/common/StringUnion";
@@ -256,6 +257,23 @@ export const getUserPresenceMaxUsers = memoize(() =>
     minValue: 0,
     maxValue: 99,
   }),
+);
+
+/**
+ * Returns the value of `GRIST_CUSTOM_WIDGET_ALLOWED_URLS` from {@link appSettings}, parsed
+ * into a list of entries, or `undefined` if custom widget URLs are not restricted.
+ *
+ * See `isCustomWidgetUrlAllowed` in `app/common/CustomWidget.ts` for the supported formats.
+ *
+ * NOTE: This value is memoized for the life of the server process; changes to the DB
+ * are not reflected until server restart.
+ */
+export const getCustomWidgetAllowedUrls = memoize(() =>
+  parseCustomWidgetAllowedUrls(
+    appSettings.section("customWidgets").flag("allowedUrls").readString({
+      envVar: "GRIST_CUSTOM_WIDGET_ALLOWED_URLS",
+    }),
+  ),
 );
 
 /** The edition an installation runs when one isn't explicitly set. */

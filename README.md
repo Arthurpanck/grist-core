@@ -441,6 +441,7 @@ Grist can be configured in many ways. Here are the main environment variables it
 | GRIST_BACKUP_DELAY_SECS | wait this long after a doc change before making a backup |
 | GRIST_BOOT_KEY | if set, use this key to sign in as the installation admin at `/boot`. New installs auto-generate one and print it on startup; set this only if you want a key of your own choosing. |
 | GRIST_BROADCAST_TIMEOUT_MS | Set the maximum time a web client has to accept a broadcast message about a document before being disconnected (default: 1 minute). |
+| GRIST_CUSTOM_WIDGET_ALLOWED_URLS | comma-separated list of URLs that "Custom URL" widgets are allowed to load. Unset (the default) allows any URL. See [Restricting custom widget URLs](#restricting-custom-widget-urls). |
 | GRIST_DATA_DIR | Directory in which to store documents. Defaults to `docs/` relative to the Grist application directory. In Grist's default Docker image, its default value is /persist/docs so that it will be used as a mounted volume. |
 | GRIST_DEFAULT_EMAIL | if set, login as this user if no other credentials presented |
 | GRIST_DEFAULT_PRODUCT | if set, this controls enabled features and limits of new sites. See names of PRODUCTS in Product.ts. |
@@ -638,6 +639,45 @@ components:
    any others from `GRIST_WIDGET_LIST_URL`.
  * If you like, you can add multiple plugin subdirectories, with
    multiple sets of widgets, and they'll all be made available.
+
+#### Restricting custom widget URLs:
+
+By default, any user who can edit a document may add a "Custom URL" widget
+pointing to any web page. Such a page runs in the browser of everyone who
+views the document and, once granted access, can read and modify document
+data. To only allow widgets from sources you trust, set
+`GRIST_CUSTOM_WIDGET_ALLOWED_URLS` to a comma-separated list of entries:
+
+Entry | Allows
+----- | ------
+`https://widgets.example.com/grist/` | URLs starting with this prefix (same protocol, host and port; the path must start with `/grist/`). This is the recommended form, especially for shared hosts such as `github.io`.
+`widgets.example.com` | any `https` URL on this exact host (any port, unless one is given, as in `widgets.example.com:8443`).
+`*.example.com` | any `https` URL on a subdomain of `example.com` (but not `example.com` itself).
+`*` | any `http`/`https` URL (same as leaving the variable unset).
+
+For example:
+
+```
+GRIST_CUSTOM_WIDGET_ALLOWED_URLS=https://gristlabs.github.io/grist-widget/,widgets.example.com
+```
+
+When set:
+
+ * URLs that don't match are refused when entered in the widget gallery or
+   in the creator panel.
+ * Widgets already saved in documents with a URL that doesn't match are not
+   loaded; a message is shown in their place instead. The check happens when
+   the widget is displayed, so it also applies to existing documents and to
+   URLs set through the API or imports.
+ * Widgets offered by the gallery (from `GRIST_WIDGET_LIST_URL` or bundled
+   plugins) are configured by the administrator and are not restricted.
+ * Entries that cannot be parsed never match, so a misconfiguration blocks
+   widgets rather than allowing them.
+
+Note that path prefixes restrict which pages Grist will load, but the
+browser's security boundary is the origin (protocol, host and port): only
+list hosts whose content you trust as a whole. The setting is read on
+startup; restart Grist after changing it.
 
 #### Google Drive integrations:
 

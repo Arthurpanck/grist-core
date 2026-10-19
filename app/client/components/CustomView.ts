@@ -373,8 +373,26 @@ Please contact document owner or modify access rules."),
     // array of nodes (comment, node, comment) and it somehow breaks the dispose order. Collapsed widgets
     // relay on a correct order of dispose, and are detaching nodes just before they are disposed, so if
     // the order is wrong, the node is disposed without being detached first.
-    return dom.update(widgetFrame.buildDom(), dom.autoDispose(widgetFrame));
+    return [
+      // Listed before the iframe, so that it gets disposed before the iframe disposes widgetFrame.
+      dom.maybe(widgetFrame.blockedUrl, url => buildBlockedUrlNotice(url)),
+      dom.update(widgetFrame.buildDom(), dom.autoDispose(widgetFrame)),
+    ];
   }
+}
+
+// Shown instead of a widget whose URL is not allowed by the administrator.
+function buildBlockedUrlNotice(url: string) {
+  return dom("div.custom_view_no_mapping.flexauto",
+    testId("blocked-url"),
+    dom("img", { src: "img/empty-widget.svg" }),
+    dom("h1", t("This widget's URL is not allowed")),
+    dom("p",
+      t("Your administrator only allows custom widgets from approved sources. \
+Please contact them, or choose a widget from the gallery."),
+    ),
+    dom("p", dom("code", url)),
+  );
 }
 
 // helper to build the notification's frame.

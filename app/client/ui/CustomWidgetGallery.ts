@@ -1,4 +1,8 @@
 import { GristDoc } from "app/client/components/GristDoc";
+import {
+  getCustomWidgetUrlNotAllowedMessage,
+  isCustomWidgetUrlAllowedByConfig,
+} from "app/client/lib/customWidgetUrl";
 import { makeT } from "app/client/lib/localization";
 import { ViewSectionRec } from "app/client/models/DocModel";
 import { textInput } from "app/client/ui/inputs";
@@ -304,6 +308,8 @@ class CustomWidgetGallery extends Disposable {
             this._customUrlInput = el as HTMLInputElement;
           },
           { placeholder: t("Widget URL"), type: "url" },
+          // Clear any error set by _validateSelectedWidget, so the browser re-validates the URL.
+          dom.on("input", (_ev, el) => (el as HTMLInputElement).setCustomValidity("")),
           testId("custom-url"),
         ),
       ),
@@ -329,14 +335,19 @@ class CustomWidgetGallery extends Disposable {
   /**
    * Check if the selected widget is valid:
    * - it is by default for all widgets
-   * - it is for "custom url widgets" if the url input follows url format and the user confirmed the security risk modal
+   * - it is for "custom url widgets" if the url input follows url format, is allowed by the administrator
+   *   (see GRIST_CUSTOM_WIDGET_ALLOWED_URLS) and the user confirmed the security risk modal
    */
   private async _validateSelectedWidget(selectedWidgetId: string) {
     const isCustomUrlWidget = selectedWidgetId === CUSTOM_URL_WIDGET_ID;
     if (isCustomUrlWidget) {
+      const url = this._customUrl.get();
+      const isEmptyUrl = !url.length;
+      if (!isEmptyUrl && this._customUrlInput?.checkValidity() && !isCustomWidgetUrlAllowedByConfig(url)) {
+        this._customUrlInput.setCustomValidity(getCustomWidgetUrlNotAllowedMessage());
+      }
       // reportValidity will trigger native browser validation, showing a message to the user if the url is invalid
       const isValidUrl = this._customUrlInput?.reportValidity();
-      const isEmptyUrl = !this._customUrl.get().length;
       return isEmptyUrl || (isValidUrl && await userTrustsCustomWidget());
     }
     return true;

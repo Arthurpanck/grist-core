@@ -1883,7 +1883,9 @@
         "Some required columns aren't mapped": "Some required columns aren't mapped",
         "To use this widget, please map all non-optional columns from the creator panel on the right.": "To use this widget, please map all non-optional columns from the creator panel on the right.",
         "Some required columns are hidden by access rules": "Some required columns are hidden by access rules",
-        "To use this widget, all mapped columns must be visible. Please contact document owner or modify access rules.": "To use this widget, all mapped columns must be visible. Please contact document owner or modify access rules."
+        "To use this widget, all mapped columns must be visible. Please contact document owner or modify access rules.": "To use this widget, all mapped columns must be visible. Please contact document owner or modify access rules.",
+        "This widget's URL is not allowed": "This widget's URL is not allowed",
+        "Your administrator only allows custom widgets from approved sources. Please contact them, or choose a widget from the gallery.": "Your administrator only allows custom widgets from approved sources. Please contact them, or choose a widget from the gallery."
     },
     "FormContainer": {
         "Build your own form": "Build your own form",
@@ -3669,5 +3671,8 @@
         "Cancel": "Cancel",
         "Enter email addresses, one per line or separated by commas": "Enter email addresses, one per line or separated by commas",
         "At least one email is invalid": "At least one email is invalid"
+    },
+    "customWidgetUrl": {
+        "This URL is not allowed by your administrator. Only custom widgets from approved sources can be added.": "This URL is not allowed by your administrator. Only custom widgets from approved sources can be added."
     }
 }

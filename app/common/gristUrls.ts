@@ -969,6 +969,11 @@ export interface GristLoadConfig {
   // the custom widget gallery.
   enableWidgetRepository?: boolean;
 
+  // If set, URLs entered for Custom URL widgets must match one of these entries (see
+  // `isCustomWidgetUrlAllowed` in app/common/CustomWidget.ts). Widgets from the widget
+  // repository are not restricted. Set via GRIST_CUSTOM_WIDGET_ALLOWED_URLS.
+  customWidgetAllowedUrls?: string[];
+
   // Whether there is somewhere for survey data to go.
   survey?: boolean;
 

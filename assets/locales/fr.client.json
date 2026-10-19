@@ -1812,7 +1812,9 @@
         "Some required columns aren't mapped": "Certaines colonnes obligatoires ne sont pas utilisées",
         "To use this widget, please map all non-optional columns from the creator panel on the right.": "Pour utiliser cette vue, utilisez toutes les colonnes obligatoires à partir du panneau du créateur sur la droite.",
         "To use this widget, all mapped columns must be visible. Please contact document owner or modify access rules.": "Pour utiliser ce widget, toutes les colonnes utilisées doivent être visibles. Veuillez contacter le propriétaire du document ou modifier les accès.",
-        "Some required columns are hidden by access rules": "Certaines colonnes obligatoires sont cachées faute d'accès"
+        "Some required columns are hidden by access rules": "Certaines colonnes obligatoires sont cachées faute d'accès",
+        "This widget's URL is not allowed": "L'URL de cette vue n'est pas autorisée",
+        "Your administrator only allows custom widgets from approved sources. Please contact them, or choose a widget from the gallery.": "Votre administrateur n'autorise que les vues personnalisées provenant de sources approuvées. Contactez-le, ou choisissez une vue dans la galerie."
     },
     "FormContainer": {
         "Build your own form": "Créez votre propre formulaire",
@@ -3422,5 +3424,8 @@
         "You've asked for this.": "Vous avez demandé cela.",
         "{{count}} people have asked for this._one": "{{count}} personnes ont demandé cela.",
         "{{count}} people have asked for this._other": "{{count}} personnes ont demandé cela."
+    },
+    "customWidgetUrl": {
+        "This URL is not allowed by your administrator. Only custom widgets from approved sources can be added.": "Cette URL n'est pas autorisée par votre administrateur. Seules les vues personnalisées provenant de sources approuvées peuvent être ajoutées."
     }
 }

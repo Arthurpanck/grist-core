@@ -1,4 +1,9 @@
-import { ICustomWidget, matchWidget } from "app/common/CustomWidget";
+import {
+  ICustomWidget,
+  isCustomWidgetUrlAllowed,
+  matchWidget,
+  parseCustomWidgetAllowedUrls,
+} from "app/common/CustomWidget";
 
 import { assert } from "chai";
 
@@ -66,5 +71,107 @@ describe("CustomWidget", function() {
     const result = matchWidget([external], { widgetId: "w1", pluginId: "some-plugin" });
     assert.equal(result?.widgetId, "w1");
     assert.isUndefined(result?.source);
+  });
+});
+
+describe("parseCustomWidgetAllowedUrls", function() {
+  it("should return undefined when unset or blank", function() {
+    assert.isUndefined(parseCustomWidgetAllowedUrls(undefined));
+    assert.isUndefined(parseCustomWidgetAllowedUrls(""));
+    assert.isUndefined(parseCustomWidgetAllowedUrls(" , ,"));
+  });
+
+  it("should split on commas and trim entries", function() {
+    assert.deepEqual(
+      parseCustomWidgetAllowedUrls(" example.com, https://a.org/widgets/ ,,*.b.net "),
+      ["example.com", "https://a.org/widgets/", "*.b.net"],
+    );
+  });
+});
+
+describe("isCustomWidgetUrlAllowed", function() {
+  function check(allowed: string | undefined, url: string) {
+    return isCustomWidgetUrlAllowed(url, parseCustomWidgetAllowedUrls(allowed));
+  }
+
+  it("should allow any http(s) URL when no list is configured", function() {
+    assert.isTrue(check(undefined, "https://anything.com/widget"));
+    assert.isTrue(check(undefined, "http://anything.com/widget"));
+  });
+
+  it("should reject invalid and non-http(s) URLs", function() {
+    for (const allowed of [undefined, "*"]) {
+      assert.isFalse(check(allowed, "not a url"));
+      assert.isFalse(check(allowed, "javascript:alert(1)"));
+      assert.isFalse(check(allowed, "data:text/html,<script></script>"));
+      assert.isFalse(check(allowed, "file:///etc/passwd"));
+    }
+  });
+
+  it("should allow everything with a wildcard", function() {
+    assert.isTrue(check("*", "https://anything.com/widget"));
+    assert.isTrue(check("example.com,*", "http://anything.com/widget"));
+  });
+
+  it("should match hostnames exactly, over https only", function() {
+    const allowed = "widgets.example.com";
+    assert.isTrue(check(allowed, "https://widgets.example.com/"));
+    assert.isTrue(check(allowed, "https://WIDGETS.example.com/a/b?x=1#y"));
+    assert.isTrue(check(allowed, "https://widgets.example.com:8443/a"));
+    assert.isFalse(check(allowed, "http://widgets.example.com/"));
+    assert.isFalse(check(allowed, "https://example.com/"));
+    assert.isFalse(check(allowed, "https://evil.widgets.example.com/"));
+    assert.isFalse(check(allowed, "https://widgets.example.com.evil.com/"));
+    assert.isFalse(check(allowed, "https://widgets.example.com@evil.com/"));
+  });
+
+  it("should match ports when the entry includes one", function() {
+    const allowed = "example.com:8443";
+    assert.isTrue(check(allowed, "https://example.com:8443/a"));
+    assert.isFalse(check(allowed, "https://example.com/a"));
+    assert.isFalse(check(allowed, "https://example.com:9000/a"));
+  });
+
+  it("should match subdomains with a wildcard hostname", function() {
+    const allowed = "*.example.com";
+    assert.isTrue(check(allowed, "https://a.example.com/"));
+    assert.isTrue(check(allowed, "https://a.b.example.com/"));
+    assert.isFalse(check(allowed, "https://example.com/"));
+    assert.isFalse(check(allowed, "https://badexample.com/"));
+    assert.isFalse(check(allowed, "http://a.example.com/"));
+  });
+
+  it("should match URL prefixes on protocol, host and path", function() {
+    const allowed = "https://gristlabs.github.io/grist-widget/";
+    assert.isTrue(check(allowed, "https://gristlabs.github.io/grist-widget/"));
+    assert.isTrue(check(allowed, "https://gristlabs.github.io/grist-widget/calendar/index.html?a=1"));
+    assert.isFalse(check(allowed, "https://gristlabs.github.io/grist-widget"));
+    assert.isFalse(check(allowed, "https://gristlabs.github.io/grist-widget-evil/"));
+    assert.isFalse(check(allowed, "https://evil.github.io/grist-widget/"));
+    assert.isFalse(check(allowed, "http://gristlabs.github.io/grist-widget/"));
+    assert.isFalse(check(allowed, "https://gristlabs.github.io:444/grist-widget/"));
+    // Path traversal is normalized by the URL parser, or rejected when encoded.
+    assert.isFalse(check(allowed, "https://gristlabs.github.io/grist-widget/../evil/"));
+    assert.isFalse(check(allowed, "https://gristlabs.github.io/grist-widget/%2E%2E/evil/"));
+    assert.isFalse(check(allowed, "https://gristlabs.github.io/grist-widget/..%2Fevil/"));
+  });
+
+  it("should match URL prefixes without a trailing slash at segment boundaries", function() {
+    const allowed = "https://example.com/widgets";
+    assert.isTrue(check(allowed, "https://example.com/widgets"));
+    assert.isTrue(check(allowed, "https://example.com/widgets/map"));
+    assert.isFalse(check(allowed, "https://example.com/widgets2/map"));
+  });
+
+  it("should allow a whole origin with a root URL prefix, including over http", function() {
+    const allowed = "http://intranet.local:8080/";
+    assert.isTrue(check(allowed, "http://intranet.local:8080/any/path"));
+    assert.isFalse(check(allowed, "https://intranet.local:8080/any/path"));
+    assert.isFalse(check(allowed, "http://intranet.local/any/path"));
+  });
+
+  it("should fail closed on invalid entries", function() {
+    assert.isFalse(check("https://[bad", "https://example.com/"));
+    assert.isFalse(check("not a domain", "https://example.com/"));
   });
 });

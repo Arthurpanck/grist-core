@@ -124,3 +124,74 @@ export function matchWidget(widgets: ICustomWidget[], options: {
   if (prefs[0].widgetId !== options.widgetId) { return; }
   return prefs[0];
 }
+
+/**
+ * Parses the value of `GRIST_CUSTOM_WIDGET_ALLOWED_URLS` (a comma-separated list) into a
+ * list of entries. Returns `undefined` if the value is unset or blank, meaning that custom
+ * widget URLs are not restricted.
+ *
+ * See {@link isCustomWidgetUrlAllowed} for the supported entry formats.
+ */
+export function parseCustomWidgetAllowedUrls(value: string | undefined): string[] | undefined {
+  const entries = (value ?? "").split(",").map(entry => entry.trim()).filter(Boolean);
+  return entries.length > 0 ? entries : undefined;
+}
+
+/**
+ * Returns true if `url` may be loaded by a custom widget, according to `allowedUrls`.
+ *
+ * If `allowedUrls` is undefined, all http(s) URLs are allowed (the default behavior of Grist).
+ * Otherwise, `url` must match at least one entry. Supported entries are:
+ *
+ *   - `*`: allows any http(s) URL.
+ *   - A URL prefix, e.g. `https://gristlabs.github.io/grist-widget/`: the URL must have the
+ *     same protocol and host (including port), and its path must start with the prefix's
+ *     path. A prefix path that doesn't end with "/" only matches at a path segment boundary
+ *     (`https://a.com/widgets` matches `https://a.com/widgets/x` but not `https://a.com/widgets2`).
+ *   - A hostname, e.g. `widgets.example.com`, or a wildcard hostname, e.g. `*.example.com`
+ *     (which matches subdomains of `example.com`, but not `example.com` itself): the URL must
+ *     use https and have a matching hostname. A port may be included, e.g. `example.com:8443`.
+ *
+ * Entries that cannot be parsed never match, so a misconfigured list fails closed.
+ */
+export function isCustomWidgetUrlAllowed(url: string, allowedUrls: string[] | undefined): boolean {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch (e) {
+    return false;
+  }
+  if (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") { return false; }
+  if (!allowedUrls) { return true; }
+  return allowedUrls.some(entry => matchesAllowedUrlEntry(parsedUrl, entry));
+}
+
+function matchesAllowedUrlEntry(url: URL, entry: string): boolean {
+  if (entry === "*") { return true; }
+
+  if (entry.includes("://")) {
+    let prefix: URL;
+    try {
+      prefix = new URL(entry);
+    } catch (e) {
+      return false;
+    }
+    if (prefix.protocol !== url.protocol || prefix.host !== url.host) { return false; }
+    const prefixPath = prefix.pathname;
+    if (prefixPath === "/") { return true; }
+    // Some servers decode these before resolving the path, which could escape the prefix.
+    if (/%2f|%5c|%2e/i.test(url.pathname)) { return false; }
+    return prefixPath.endsWith("/") ?
+      url.pathname.startsWith(prefixPath) :
+      (url.pathname === prefixPath || url.pathname.startsWith(prefixPath + "/"));
+  }
+
+  if (url.protocol !== "https:") { return false; }
+  const pattern = entry.toLowerCase();
+  // Compare the port only if the entry specifies one.
+  const host = pattern.includes(":") ? url.host : url.hostname;
+  if (pattern.startsWith("*.")) {
+    return host.endsWith(pattern.slice(1));
+  }
+  return host === pattern;
+}

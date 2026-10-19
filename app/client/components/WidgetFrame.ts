@@ -5,6 +5,7 @@ import { GristDoc } from "app/client/components/GristDoc";
 import { hooks } from "app/client/Hooks";
 import { get as getBrowserGlobals } from "app/client/lib/browserGlobals";
 import { withCustomCssVars } from "app/client/lib/customCssParser";
+import { isCustomWidgetUrlAllowedByConfig } from "app/client/lib/customWidgetUrl";
 import { makeTestId } from "app/client/lib/domUtils";
 import { sanitizeHttpUrl } from "app/client/lib/sanitizeUrl";
 import { ColumnRec, ViewSectionRec } from "app/client/models/DocModel";
@@ -100,6 +101,12 @@ export interface WidgetFrameOptions {
  * Iframe that embeds Custom Widget page and exposes Grist API.
  */
 export class WidgetFrame extends DisposableWithEvents {
+  /**
+   * Set to the widget URL when it is not allowed by the administrator (see
+   * `GRIST_CUSTOM_WIDGET_ALLOWED_URLS`), in which case the widget is not loaded.
+   */
+  public readonly blockedUrl: Computed<string | null>;
+
   // A grist-rpc object, encapsulated to prevent direct access.
   private _rpc: Rpc;
   // Created iframe element, used to receive and post messages via Rpc
@@ -147,10 +154,20 @@ export class WidgetFrame extends DisposableWithEvents {
     // Url if set.
     const maybeUrl = Computed.create(this, use => use(this._widget)?.url || this._options.url);
 
+    // URLs from the widget repository are configured by the administrator, and are trusted.
+    // Any other URL (typically, one entered for a Custom URL widget) must be allowed. This is
+    // checked here, when rendering, so that it applies regardless of how the URL was saved.
+    this.blockedUrl = Computed.create(this, (use) => {
+      if (use(this._widget)?.url) { return null; }
+      const url = this._options.url;
+      return url && !isCustomWidgetUrlAllowedByConfig(url) ? url : null;
+    });
+
     // Url to widget or empty page with access level and preferences.
     this._url = Computed.create(
       this,
-      use => this._urlWithAccess(use(maybeUrl)) || this._getEmptyWidgetPage(),
+      use => use(this.blockedUrl) ? "about:blank" :
+        this._urlWithAccess(use(maybeUrl)) || this._getEmptyWidgetPage(),
     );
 
     // Iframe is empty when url is not set.
@@ -220,6 +237,7 @@ export class WidgetFrame extends DisposableWithEvents {
     this._iframe = dom(
       "iframe",
       dom.style("visibility", use => use(this._visible) ? "visible" : "hidden"),
+      dom.hide(use => Boolean(use(this.blockedUrl))),
       dom.cls("clipboard_allow_focus"),
       dom.cls("custom_view"),
       dom.attr("src", this._url),

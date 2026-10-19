@@ -1,11 +1,16 @@
 import { allCommands } from "app/client/components/commands";
 import { GristDoc } from "app/client/components/GristDoc";
+import {
+  getCustomWidgetUrlNotAllowedMessage,
+  isCustomWidgetUrlAllowedByConfig,
+} from "app/client/lib/customWidgetUrl";
 import { makeTestId } from "app/client/lib/domUtils";
 import { FocusLayer } from "app/client/lib/FocusLayer";
 import * as kf from "app/client/lib/koForm";
 import { makeT } from "app/client/lib/localization";
 import { localStorageBoolObs } from "app/client/lib/localStorageObs";
 import { ColumnRec, ViewSectionRec } from "app/client/models/DocModel";
+import { reportError, UserError } from "app/client/models/errors";
 import {
   cssDeveloperLink,
   cssWidgetMetadata,
@@ -579,6 +584,10 @@ export class CustomSectionConfig extends Disposable {
           cssTextInput(
             this._url,
             async (value) => {
+              if (value.length && !isCustomWidgetUrlAllowedByConfig(value)) {
+                reportError(new UserError(getCustomWidgetUrlNotAllowedMessage()));
+                return this._url.set(this._url.get());
+              }
               if (!value.length || await userTrustsCustomWidget()) {
                 return this._url.set(value);
               }
