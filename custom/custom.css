@@ -1,0 +1,43 @@
+/*
+ * custom.css — Grist Grand Lyon.
+ * Loaded when APP_STATIC_INCLUDE_CUSTOM_CSS=true (file static/custom.css).
+ * If you already have a custom.css, append this block to it.
+ *
+ * ---------------------------------------------------------------------------
+ * "Outils" panel inside a document: hide tools.
+ * Uncomment the lines of the tools to hide.
+ *
+ * Warning: this only hides the entry in the menu. The pages stay reachable by
+ * URL (/p/code, /p/acl, ...) and the access rules still apply as usual.
+ * ---------------------------------------------------------------------------
+ */
+
+/* Assistant (IA) */
+/* .test-tools-assistant, div:has(> .test-tools-assistant) { display: none !important; } */
+
+/* Permissions avancées */
+/* .test-tools-access-rules { display: none !important; } */
+
+/* Données source */
+/* div:has(> .test-tools-raw) { display: none !important; } */
+
+/* Historique du document */
+/* div:has(> .test-tools-log) { display: none !important; } */
+
+/* Suggestions (when enabled) */
+/* .test-tools-proposals, div:has(> .test-tools-proposals) { display: none !important; } */
+
+/* Vue du code */
+/* .test-tools-code { display: none !important; } */
+
+/* Automatisations (can also be hidden with GRIST_HIDE_UI_ELEMENTS=automations) */
+/* .test-tools-automations { display: none !important; } */
+
+/* Paramètres */
+/* .test-tools-settings { display: none !important; } */
+
+/* Centre d'aide (in documents AND on the home page) */
+/* div:has(> .test-left-feedback) { display: none !important; } */
+
+/* Accessibilité (in documents AND on the home page) */
+/* div:has(> .test-accessibility-shortcut) { display: none !important; } */

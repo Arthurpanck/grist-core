@@ -9,7 +9,9 @@
  *       - change the text / link of the native cards,
  *       - hide native cards,
  *       - add new cards, built the same way as the native ones.
- *  3. Matomo tracking.
+ *  3. "Outils" panel inside a document: extra links after "Centre d'aide".
+ *     (To hide native tools, see custom.css.)
+ *  4. Matomo tracking.
  */
 
 // ---------------------------------------------------------------------------
@@ -86,6 +88,27 @@ const homeCards = {
     },
   ],
 };
+
+// ---------------------------------------------------------------------------
+// 3. "Outils" panel inside a document
+// ---------------------------------------------------------------------------
+// Links added after "Centre d'aide" (cloned from it, so they open in a new tab
+// and show the external link icon).
+//   iconMask: name of a Grist icon (e.g. "Help", "Log", "Settings"); default "Help".
+const docToolsLinks = [
+  {
+    text: "Se former",
+    url: "https://grist.grandlyon.fr/o/espace-metropole/doc/uWGkyURHCJxY",
+  },
+  {
+    text: "Se faire accompagner",
+    url: "https://services.formulaireintranet.grandlyon.com/demande-accompagnement-grist/",
+  },
+  {
+    text: "Déclarer RGPD",
+    url: "https://services.formulaireintranet.grandlyon.com/demande-accompagnement-grist/",
+  },
+];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -284,13 +307,58 @@ async function addLeftPanelLinks() {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Document tools links
+// ---------------------------------------------------------------------------
+const DOC_TOOLS_DONE_ATTR = "data-dm-custom-tools";
+
+function addDocToolsLinks(helpLink) {
+  const entry = helpLink.parentElement;
+  const panel = entry.parentElement;
+  if (!panel || panel.hasAttribute(DOC_TOOLS_DONE_ATTR)) { return; }
+  panel.setAttribute(DOC_TOOLS_DONE_ATTR, "1");
+
+  const newEntries = docToolsLinks.map(config => {
+    const clone = entry.cloneNode(true);
+    const link = clone.querySelector("a");
+    link.classList.remove("test-left-feedback", "tour-help-center");
+    link.classList.add("dm-tools-link");
+    setLink(link, config.url, config.newTab);
+    link.querySelector("span").textContent = config.text;
+    if (config.iconMask) {
+      const iconElm = link.querySelector('div[style*="mask-image"]');
+      if (iconElm) { iconElm.style.maskImage = `var(--icon-${config.iconMask})`; }
+    }
+    if (config.newTab === false) {
+      const externalIcon = link.querySelectorAll('div[style*="mask-image"]')[1];
+      if (externalIcon) { externalIcon.remove(); }
+    }
+    return clone;
+  });
+  entry.after(...newEntries);
+}
+
+function watchDocTools() {
+  if (!docToolsLinks.length) { return; }
+  const apply = () => {
+    // The "Centre d'aide" link of the "Outils" panel (only present inside a document).
+    const helpLink = document.querySelector(
+      `[aria-labelledby="grist-tools-heading"]:not([${DOC_TOOLS_DONE_ATTR}]) > * > .test-left-feedback`);
+    if (helpLink) { addDocToolsLinks(helpLink); }
+  };
+  apply();
+  // The panel is rebuilt when opening another document: re-apply each time.
+  new MutationObserver(apply).observe(document.body, { childList: true, subtree: true });
+}
+
 window.addEventListener("load", () => {
   watchHomeCards();
+  watchDocTools();
   addLeftPanelLinks();
 }, { once: true });
 
 // ---------------------------------------------------------------------------
-// 3. Matomo
+// 4. Matomo
 // ---------------------------------------------------------------------------
 (function () {
   var _paq = (window._paq = window._paq || []);
