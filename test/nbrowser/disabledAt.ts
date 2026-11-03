@@ -3,7 +3,7 @@ import * as gu from "test/nbrowser/gristUtils";
 import { server, setupTestSuite } from "test/nbrowser/testUtils";
 import { EnvironmentSnapshot } from "test/server/testUtils";
 
-import { assert, driver, Key } from "mocha-webdriver";
+import { assert, driver } from "mocha-webdriver";
 
 describe("disabledAt", function() {
   this.timeout(60000);
@@ -84,18 +84,16 @@ describe("disabledAt", function() {
       "Disabled doc should have -no-access css class");
 
     await enabledDoc.findWait(".test-dm-doc-options", 500).click();
-    assert.isFalse(await gu.findOpenMenuItem("li", /Move/).matches("[class*=disabled]"));
-    assert.isFalse(await gu.findOpenMenuItem("li", /Rename/).matches("[class*=disabled]"));
-    assert.isFalse(await gu.findOpenMenuItem("li", /Download/).matches("[class*=disabled]"));
-    await gu.sendKeys(Key.ESCAPE);
-    await gu.waitForMenuToClose();
+    assert.isFalse(await gu.findOpenMenuItem("li", /Move/).matches('[aria-disabled="true"]'));
+    assert.isFalse(await gu.findOpenMenuItem("li", /Rename/).matches('[aria-disabled="true"]'));
+    assert.isFalse(await gu.findOpenMenuItem("li", /Download/).matches('[aria-disabled="true"]'));
+    await gu.closeOpenMenu();
 
     await disabledDoc.findWait(".test-dm-doc-options", 500).click();
-    assert.isTrue(await gu.findOpenMenuItem("li", /Move/).matches("[class*=disabled]"));
-    assert.isTrue(await gu.findOpenMenuItem("li", /Rename/).matches("[class*=disabled]"));
-    assert.isTrue(await gu.findOpenMenuItem("li", /Download/).matches("[class*=disabled]"));
-    await gu.sendKeys(Key.ESCAPE);
-    await gu.waitForMenuToClose();
+    assert.isTrue(await gu.findOpenMenuItem("li", /Move/).matches('[aria-disabled="true"]'));
+    assert.isTrue(await gu.findOpenMenuItem("li", /Rename/).matches('[aria-disabled="true"]'));
+    assert.isTrue(await gu.findOpenMenuItem("li", /Download/).matches('[aria-disabled="true"]'));
+    await gu.closeOpenMenu();
   });
 
   it("allows owner to soft-delete and undelete disabled doc", async function() {
@@ -126,11 +124,10 @@ describe("disabledAt", function() {
     await ownerSession.loadDocMenu("/");
     const reEnabledDoc = await driver.find(".test-dm-doc");
     await reEnabledDoc.findWait(".test-dm-doc-options", 500).click();
-    assert.isFalse(await gu.findOpenMenuItem("li", /Move/).matches("[class*=disabled]"));
-    assert.isFalse(await gu.findOpenMenuItem("li", /Rename/).matches("[class*=disabled]"));
-    assert.isFalse(await gu.findOpenMenuItem("li", /Download/).matches("[class*=disabled]"));
-    await gu.sendKeys(Key.ESCAPE);
-    await gu.waitForMenuToClose();
+    assert.isFalse(await gu.findOpenMenuItem("li", /Move/).matches('[aria-disabled="true"]'));
+    assert.isFalse(await gu.findOpenMenuItem("li", /Rename/).matches('[aria-disabled="true"]'));
+    assert.isFalse(await gu.findOpenMenuItem("li", /Download/).matches('[aria-disabled="true"]'));
+    await gu.closeOpenMenu();
 
     const titleText = await reEnabledDoc.findWait(".test-dm-doc-name", 500).getText();
     assert.include(titleText, "A rose by any other name");

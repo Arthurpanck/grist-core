@@ -28,9 +28,8 @@ describe("ColumnTransform", function() {
     await gu.findOpenMenu();
 
     // The 'Rename' option should be disabled.
-    assert.isTrue(await driver.findContentWait("li", /Rename column/, 1000).matches(".disabled"));
-    await gu.sendKeys(Key.ESCAPE);
-    await gu.waitForMenuToClose();
+    assert.isTrue(await driver.findContentWait("li", /Rename column/, 1000).matches('[aria-disabled="true"]'));
+    await gu.closeOpenMenu();
 
     // Try to rename using shortcut (cmd+M on Mac, ctrl+M otherwise).
     await gu.sendKeys(Key.chord(await gu.modKey(), "m"));

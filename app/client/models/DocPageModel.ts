@@ -1,8 +1,10 @@
 import { GristDoc, GristDocImpl } from "app/client/components/GristDoc";
 import { IUndoState } from "app/client/components/UndoStack";
 import { UnsavedChange } from "app/client/components/UnsavedChanges";
+import { ariaDisabled } from "app/client/lib/domUtils";
 import { loadGristDoc } from "app/client/lib/imports";
 import { makeT } from "app/client/lib/localization";
+import { createSessionObs, isBoolean } from "app/client/lib/sessionObs";
 import { logTelemetryEvent } from "app/client/lib/telemetry";
 import { AppModel, getOrgNameOrGuest, reportError } from "app/client/models/AppModel";
 import { getDoc } from "app/client/models/gristConfigCache";
@@ -116,6 +118,8 @@ export interface DocPageModel {
 
   gristDoc: Observable<GristDoc | null>;             // Instance of GristDoc once it exists.
 
+  innerLeftPanelOpen: Observable<boolean>;
+
   /** List of users with access to the document, null if not initialized. */
   docUsers: Observable<PermissionData | null>;
 
@@ -196,6 +200,8 @@ export class DocPageModelImpl extends Disposable implements DocPageModel {
   public readonly undoState: Observable<IUndoState | null> = Observable.create(this, null);
 
   public readonly docUsers = Observable.create<PermissionData | null>(this, null);
+
+  public readonly innerLeftPanelOpen = createSessionObs<boolean>(this, "innerLeftPanelOpen", false, isBoolean);
 
   private readonly _docUsersData = new MapWithTTL<"users", Promise<PermissionData>>(60 * 1000);
 
@@ -595,18 +601,18 @@ function addMenu(importSources: ImportSource[], gristDoc: GristDoc, isReadonly: 
       elem => openPageWidgetPicker(elem, gristDoc, val => gristDoc.addNewPage(val).catch(reportError),
         { isNewPage: true, buttonLabel: t("Add page") }),
       menuIcon("Page"), t("Add page"), testId("dp-add-new-page"),
-      dom.cls("disabled", isReadonly),
+      ariaDisabled(isReadonly),
     ),
     menuItem(
       elem => openPageWidgetPicker(elem, gristDoc, val => gristDoc.addWidgetToPage(val).catch(reportError),
         { isNewPage: false, selectBy }),
       menuIcon("Widget"), t("Add widget to page"), testId("dp-add-widget-to-page"),
       // disable for readonly doc and all special views
-      dom.cls("disabled", use => typeof use(gristDoc.activeViewId) !== "number" || isReadonly),
+      ariaDisabled(use => typeof use(gristDoc.activeViewId) !== "number" || isReadonly),
     ),
     menuItem(() => gristDoc.addEmptyTable().catch(reportError),
       menuIcon("TypeTable"), t("Add empty table"), testId("dp-empty-table"),
-      dom.cls("disabled", isReadonly),
+      ariaDisabled(isReadonly),
     ),
     menuDivider(),
     buildImportMenu(importSources, isReadonly),
@@ -626,7 +632,7 @@ function buildImportMenu(importSources: ImportSource[], isReadonly: boolean): Do
       menuIcon("Import"),
       t("Import from {{importSource}}", { importSource: importSource.label }),
       testId("dp-import-option"),
-      dom.cls("disabled", isReadonly),
+      ariaDisabled(isReadonly),
     );
   }
   return menuItemSubmenu(
@@ -635,7 +641,7 @@ function buildImportMenu(importSources: ImportSource[], isReadonly: boolean): Do
         menuItem(importSource.action,
           importSource.label,
           testId(`dp-import-option`),
-          dom.cls("disabled", isReadonly),
+          ariaDisabled(isReadonly),
         ),
       ),
       testId("dp-import-menu-items"),
@@ -643,7 +649,7 @@ function buildImportMenu(importSources: ImportSource[], isReadonly: boolean): Do
     {},
     menuIcon("Import"), t("Import from..."),
     testId("dp-import-menu"),
-    dom.cls("disabled", isReadonly),
+    ariaDisabled(isReadonly),
   );
 }
 

@@ -9,7 +9,6 @@ import {
   hasAddNewColumMenu,
   hasLookupMenu,
   hasShortcuts,
-  isMenuPresent,
   MAX,
   MIN,
   PERCENT,
@@ -123,6 +122,7 @@ describe("GridViewNewColumnMenu", function() {
     it("should support inserting before selected column", async function() {
       await gu.openColumnMenu("A", "Insert column to the left");
       await driver.findWait(".test-new-columns-menu", STANDARD_WAITING_TIME);
+      await gu.waitForFocus(".test-new-columns-menu-add-new");
       await gu.sendKeys(Key.ENTER);
       await gu.waitForServer();
       await driver.findWait(".test-column-title-close", STANDARD_WAITING_TIME).click();
@@ -133,6 +133,7 @@ describe("GridViewNewColumnMenu", function() {
     it("should support inserting after selected column", async function() {
       await gu.openColumnMenu("A", "Insert column to the right");
       await driver.findWait(".test-new-columns-menu", STANDARD_WAITING_TIME);
+      await gu.waitForFocus(".test-new-columns-menu-add-new");
       await gu.sendKeys(Key.ENTER);
       await gu.waitForServer();
       await driver.findWait(".test-column-title-close", STANDARD_WAITING_TIME).click();
@@ -143,6 +144,7 @@ describe("GridViewNewColumnMenu", function() {
     it("should support inserting after the last visible column", async function() {
       await gu.openColumnMenu("C", "Insert column to the right");
       await driver.findWait(".test-new-columns-menu", STANDARD_WAITING_TIME);
+      await gu.waitForFocus(".test-new-columns-menu-add-new");
       await gu.sendKeys(Key.ENTER);
       await gu.waitForServer();
       await driver.findWait(".test-column-title-close", STANDARD_WAITING_TIME).click();
@@ -554,8 +556,7 @@ describe("GridViewNewColumnMenu", function() {
         await gu.clearInput();
         await checkResult(["B", "C", "New1", "New2", "New3", "New4"]);
 
-        await gu.sendKeys(Key.ESCAPE);
-        assert.isFalse(await isMenuPresent());
+        await closeAddColumnMenu();
 
         // Show it once again and add B and C.
         await clickAddColumn();

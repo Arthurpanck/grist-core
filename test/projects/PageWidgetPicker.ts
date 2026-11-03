@@ -1,5 +1,5 @@
 import { delay } from "app/common/delay";
-import { server, setupTestSuite } from "test/projects/testUtils";
+import { openFixture, setupTestSuite } from "test/projects/testUtils";
 
 import { assert, driver, Key } from "mocha-webdriver";
 
@@ -29,7 +29,7 @@ describe("PageWidgetPicker", () => {
 
   before(async function() {
     this.timeout(60000);
-    await driver.get(`${server.getHost()}/PageWidgetPicker`);
+    await openFixture("PageWidgetPicker");
   });
 
   it("should reflect `.value` on open", async function() {
@@ -202,7 +202,7 @@ describe("PageWidgetPicker", () => {
     await driver.findContent(".test-wselect-table", /New Table/).doClick();
 
     // check that 'Chart', 'Calendar' and 'Custom' are disabled
-    assert.deepEqual(await findAllDisabled("type"), ["Chart", "Calendar", "Custom"]);
+    assert.deepEqual(await findAllDisabled("type"), ["Chart", "Calendar", "Custom", "Create your own\nNEW"]);
     assert.deepEqual(await findAllDisabled("table"), []);
 
     // click 'Chart'
@@ -238,7 +238,7 @@ describe("PageWidgetPicker", () => {
     // select 'New Table' and check that 'single', 'detail', 'chart', 'calendar', 'custom' are disabled
     await driver.findContent(".test-wselect-table", /New Table/).doClick();
     assert.deepEqual(await findAllDisabled("type"),
-      ["Card", "Card List", "Chart", "Calendar", "Custom"]);
+      ["Card", "Card List", "Chart", "Calendar", "Custom", "Create your own\nNEW"]);
     assert.deepEqual(await findAllDisabled("table"), []);
 
     // select 'Companies' and check that none are disabled

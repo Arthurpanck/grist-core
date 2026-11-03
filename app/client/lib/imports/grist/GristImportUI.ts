@@ -37,6 +37,7 @@ import {
   NewTable,
 } from "app/client/lib/imports/ImportTableMapping";
 import { makeT } from "app/client/lib/localization";
+import { logUpsellShown } from "app/client/lib/upsellTelemetry";
 import { AppModel } from "app/client/models/AppModel";
 import { cssWell } from "app/client/ui/AdminPanelCss";
 import { isGristImportAvailable } from "app/client/ui/FeatureStatus";
@@ -45,9 +46,9 @@ import { bigBasicButton, bigPrimaryButton, bigPrimaryButtonLink } from "app/clie
 import { triStateSquareCheckbox } from "app/client/ui2018/checkbox";
 import { isNarrowScreenObs, testId, theme } from "app/client/ui2018/cssVars";
 import { icon } from "app/client/ui2018/icons";
-import { loadingSpinner } from "app/client/ui2018/loaders";
+import { DELAY_BEFORE_SPINNER_MS, loadingSpinner } from "app/client/ui2018/loaders";
 import {
-  IOption, menuDivider, menuSubHeader, selectMenu, selectOption, selectWithLoader,
+  IOption, menuDivider, menuGroup, selectMenu, selectOption, selectWithLoader,
 } from "app/client/ui2018/menus";
 import { cssModalBody } from "app/client/ui2018/modals";
 import {
@@ -73,8 +74,6 @@ type GristToGristMapping = ImportTableMapping<NewTable | ExistingTable>;
 type GristImportStep = "select-doc" | "select-tables";
 
 type LoadingState = boolean | "slow";
-
-const DELAY_BEFORE_SPINNER_MS = 500;
 
 type Destination =
   { type: "existing-doc", docId: string, docSchema?: Computed<DocSchema> } |
@@ -342,6 +341,7 @@ export class GristImport extends Disposable {
     const { deploymentType } = getGristConfig();
     const isCoreDeployment = deploymentType === "core";
     const canUpgrade = deploymentType === "saas" && appModel.isOwner() && appModel.isBillingManager();
+    if (canUpgrade) { logUpsellShown(appModel, "importFromGrist"); }
 
     return cssUpgradeNudge(
       cssUpgradeNudgeText(isCoreDeployment ?
@@ -350,7 +350,7 @@ export class GristImport extends Disposable {
       canUpgrade ?
         bigPrimaryButton(
           t("Try for free"),
-          dom.on("click", () => appModel.showUpgradeModal()),
+          dom.on("click", () => appModel.showUpgradeModal("importFromGrist")),
           testId("import-grist-upgrade"),
         ) :
         bigPrimaryButtonLink(
@@ -439,36 +439,40 @@ export class GristImport extends Disposable {
     };
 
     return [
-      menuSubHeader(t("Choose destination")),
-      selectOption(
-        () => setDestination(IMPORT_TABLE_AND_DATA),
-        t("New table"),
-        "Plus",
-        cssAccentIconColor.cls(""),
-      ),
-      selectOption(
-        () => setDestination({ type: "new-table", structureOnly: true }),
-        t("New table: structure only"),
-        "Plus",
-        cssAccentIconColor.cls(""),
-      ),
-      selectOption(
-        () => {
-          mapping.destination.set(null);
-        },
-        t("Skip"),
-        "CrossBig",
-        cssAccentIconColor.cls(""),
+      menuGroup(
+        t("Choose destination"),
+        selectOption(
+          () => setDestination(IMPORT_TABLE_AND_DATA),
+          t("New table"),
+          "Plus",
+          cssAccentIconColor.cls(""),
+        ),
+        selectOption(
+          () => setDestination({ type: "new-table", structureOnly: true }),
+          t("New table: structure only"),
+          "Plus",
+          cssAccentIconColor.cls(""),
+        ),
+        selectOption(
+          () => {
+            mapping.destination.set(null);
+          },
+          t("Skip"),
+          "CrossBig",
+          cssAccentIconColor.cls(""),
+        ),
       ),
       dom.domComputed(this._existingTables, existingTables => existingTables.length > 0 ? [
         menuDivider(),
-        menuSubHeader(t("Existing tables")),
-        existingTables.map(({ id, name }) =>
-          selectOption(
-            () => setDestination({ type: "existing-table", tableId: id }),
-            name || id,
-            "FieldTable",
-            cssAccentIconColor.cls(""),
+        menuGroup(
+          t("Existing tables"),
+          existingTables.map(({ id, name }) =>
+            selectOption(
+              () => setDestination({ type: "existing-table", tableId: id }),
+              name || id,
+              "FieldTable",
+              cssAccentIconColor.cls(""),
+            ),
           ),
         ),
       ] : null),

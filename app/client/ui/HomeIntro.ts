@@ -1,15 +1,16 @@
 import { makeT } from "app/client/lib/localization";
 import { HomeModel } from "app/client/models/HomeModel";
 import { productPill } from "app/client/ui/AppHeader";
+import { buildHomeAssistantComposer, hasHomeAssistantComposer } from "app/client/ui/assistant/HomeAssistant";
 import * as css from "app/client/ui/DocMenuCss";
-import { buildHomeAssistantComposer, hasHomeAssistantComposer } from "app/client/ui/HomeAssistant";
-import { buildLearningResources } from "app/client/ui/HomeLearningResources";
+import { buildLearningResources, cssCards } from "app/client/ui/HomeLearningResources";
 import { buildNewDocumentBlock, cssNewDocBlock } from "app/client/ui/HomeNewDocBlock";
 import { buildSectionHead, cssSectionBody, reveal, revealed } from "app/client/ui/HomeSection";
 import { isNarrowScreenObs, testId, theme, vars } from "app/client/ui2018/cssVars";
 import { icon } from "app/client/ui2018/icons";
-import { menu, menuCssClass } from "app/client/ui2018/menus";
+import { menu, menuItemCheckbox } from "app/client/ui2018/menus";
 import { toggleSwitch } from "app/client/ui2018/toggleSwitch";
+import { unstyledButton } from "app/client/ui2018/unstyled";
 import { FullUser } from "app/common/LoginSessionAPI";
 
 import { dom, DomContents, DomElementArg, styled } from "grainjs";
@@ -17,16 +18,14 @@ import { defaultMenuOptions } from "popweasel";
 
 const t = makeT("HomeIntro");
 
-const MAX_ANIMATED_VISITS = 10;
-
 function shouldAnimateIntro(homeModel: HomeModel): boolean {
   return hasHomeAssistantComposer() &&
-    homeModel.app.impressions.getCount("assistantIntro") < MAX_ANIMATED_VISITS;
+    homeModel.app.impressions.shouldShow("assistantIntro");
 }
 
 function countIntroImpression(homeModel: HomeModel): DomElementArg {
   return dom.on("animationstart", () =>
-    homeModel.app.impressions.incrementCount("assistantIntro", MAX_ANIMATED_VISITS));
+    homeModel.app.impressions.incrementCount("assistantIntro"));
 }
 
 export function buildHomeIntro(homeModel: HomeModel): DomContents {
@@ -101,6 +100,7 @@ function makeAnonIntro(homeModel: HomeModel, animate: boolean) {
 function buildIntroBody(homeModel: HomeModel, animate: boolean): DomContents {
   return dom.maybe(use => !use(homeModel.onlyShowDocuments), () => {
     return cssIntroFlow(
+      cssIntroFlow.cls("-compact", !hasHomeAssistantComposer()),
       cssCreateSection(
         buildSectionHead(
           hasHomeAssistantComposer() ? "Sparkle" : "Plus",
@@ -130,16 +130,18 @@ function buildPreferencesMenu(homeModel: HomeModel) {
     cssDots(icon("Dots")),
     menu(
       () => [
-        toggleSwitch(onlyShowDocuments, {
-          label: t("Only show documents"),
-          args: [
-            testId("welcome-menu-only-show-documents"),
-          ],
-        }),
+        menuItemCheckbox(
+          onlyShowDocuments,
+          toggleSwitch(onlyShowDocuments, {
+            label: t("Only show documents"),
+            args: [
+              testId("welcome-menu-only-show-documents"),
+            ],
+          }),
+        ),
       ],
       {
         ...defaultMenuOptions,
-        menuCssClass: `${menuCssClass} ${cssPreferencesMenu.className}`,
         placement: "bottom-end",
       },
     ),
@@ -171,12 +173,22 @@ const cssIntroFlow = styled("div", `
   row-gap: 32px;
   width: 100%;
   margin-bottom: 24px;
+
+  &-compact {
+    column-gap: 56px;
+  }
 `);
 
 const cssCreateSection = styled("div", `
   flex: 1 1 470px;
   min-width: 0;
   container-type: inline-size;
+
+  .${cssIntroFlow.className}-compact & {
+    flex: 0 1 320px;
+    display: flex;
+    flex-direction: column;
+  }
 `);
 
 const cssLearnSection = styled("div", `
@@ -185,6 +197,15 @@ const cssLearnSection = styled("div", `
   container-type: inline-size;
   display: flex;
   flex-direction: column;
+
+  .${cssIntroFlow.className}-compact & .${cssCards.className} {
+    flex: none;
+  }
+  @container (min-width: 800px) {
+    .${cssIntroFlow.className}-compact & .${cssCards.className} {
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    }
+  }
 `);
 
 const cssCreateBody = styled(cssSectionBody, `
@@ -194,6 +215,18 @@ const cssCreateBody = styled(cssSectionBody, `
 
   & > * {
     width: 100%;
+  }
+  .${cssIntroFlow.className}-compact & {
+    flex: 1 1 auto;
+    min-height: 132px;
+    justify-content: center;
+    padding: 16px;
+    border-radius: 8px;
+    background-color: ${theme.announcementPopupBg};
+  }
+  .${cssIntroFlow.className}-compact & > .${cssNewDocBlock.className} {
+    flex-direction: column;
+    max-width: 320px;
   }
 
   @container (min-width: 832px) {
@@ -221,11 +254,7 @@ const cssPill = styled("div", `
   flex-shrink: 0;
 `);
 
-const cssPreferencesMenu = styled("div", `
-  padding: 10px 16px;
-`);
-
-const cssDotsMenu = styled("div", `
+const cssDotsMenu = styled(unstyledButton, `
   display: flex;
   cursor: pointer;
   border-radius: ${vars.controlBorderRadius};

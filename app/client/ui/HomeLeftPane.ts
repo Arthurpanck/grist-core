@@ -1,5 +1,6 @@
 import { fixOutlineOverflow } from "app/client/components/KeyboardFocusHighlighter";
 import { kbJumperAnchor } from "app/client/components/RegionFocusSwitcher";
+import { ariaDisabled } from "app/client/lib/domUtils";
 import { loadUserManager } from "app/client/lib/imports";
 import { startHomeAirtableImport } from "app/client/lib/imports/airtable/startHomeAirtableImport";
 import { ImportSourceElement } from "app/client/lib/imports/ImportSourceElement";
@@ -185,7 +186,7 @@ export function createHomeLeftPane(leftPanelOpen: Observable<boolean>, home: Hom
             ),
           ) : null
         ),
-        createHelpTools(home.app),
+        createHelpTools(),
         createAccessibilityTools(home.app),
         (commonUrls.termsOfService ?
           cssPageEntry(
@@ -208,11 +209,11 @@ function addMenu(home: HomeModel, creating: Observable<boolean>): DomElementArg[
 
   return [
     menuItem(() => newDocMethods.createDocAndOpen(home), menuIcon("Page"), t("Create empty document"),
-      dom.cls("disabled", !home.newDocWorkspace.get()),
+      ariaDisabled(!home.newDocWorkspace.get()),
       testId("dm-new-doc"),
     ),
     menuItem(() => newDocMethods.importDocAndOpen(home), menuIcon("Import"), t("Import document"),
-      dom.cls("disabled", !home.newDocWorkspace.get()),
+      ariaDisabled(!home.newDocWorkspace.get()),
       testId("dm-import"),
     ),
     domComputed(home.importSources, importSources =>
@@ -221,10 +222,10 @@ function addMenu(home: HomeModel, creating: Observable<boolean>): DomElementArg[
     // For workspaces: if ACL says we can create them, but product says we can't,
     // then offer an upgrade link.
     upgradableMenuItem(needUpgrade, () => creating.set(true), menuIcon("Folder"), t("Create workspace"),
-      dom.cls("disabled", use => !roles.canEdit(orgAccess) || !use(home.available)),
+      ariaDisabled(use => !roles.canEdit(orgAccess) || !use(home.available)),
       testId("dm-new-workspace"),
     ),
-    upgradeText(needUpgrade, () => home.app.showUpgradeModal()),
+    upgradeText(needUpgrade, () => home.app.showUpgradeModal("homeLeftPane")),
   ];
 }
 
@@ -264,7 +265,7 @@ function buildImportMenu(home: HomeModel, importSources: HomeImportSource[]): Do
     return menuItem(importSource.action,
       menuIcon("Import"),
       t("Import from {{importSource}}", { importSource: importSource.label }),
-      dom.cls("disabled", !home.newDocWorkspace.get()),
+      ariaDisabled(!home.newDocWorkspace.get()),
       importSource.testId,
     );
   }
@@ -273,7 +274,7 @@ function buildImportMenu(home: HomeModel, importSources: HomeImportSource[]): Do
       ...importSources.map(importSource =>
         menuItem(importSource.action,
           importSource.label,
-          dom.cls("disabled", !home.newDocWorkspace.get()),
+          ariaDisabled(!home.newDocWorkspace.get()),
           importSource.testId,
         ),
       ),
@@ -325,10 +326,10 @@ function workspaceMenu(home: HomeModel, ws: Workspace, renaming: Observable<Work
 
   return [
     upgradableMenuItem(needUpgrade, () => renaming.set(ws), t("Rename"),
-      dom.cls("disabled", !roles.canEdit(ws.access)),
+      ariaDisabled(!roles.canEdit(ws.access)),
       testId("dm-rename-workspace")),
     upgradableMenuItem(needUpgrade, deleteWorkspace, t("Delete"),
-      dom.cls("disabled", user => !roles.canEdit(ws.access)),
+      ariaDisabled(!roles.canEdit(ws.access)),
       testId("dm-delete-workspace")),
     // TODO: Personal plans can't currently share workspaces, but that restriction
     // should formally be documented and defined in `Features`, with this check updated
@@ -336,7 +337,7 @@ function workspaceMenu(home: HomeModel, ws: Workspace, renaming: Observable<Work
     home.app.isPersonal ? null : upgradableMenuItem(needUpgrade, manageWorkspaceUsers,
       roles.canEditAccess(ws.access) ? t("Manage users") : t("Access Details"),
       testId("dm-workspace-access")),
-    upgradeText(needUpgrade, () => home.app.showUpgradeModal()),
+    upgradeText(needUpgrade, () => home.app.showUpgradeModal("homeLeftPane")),
   ];
 }
 

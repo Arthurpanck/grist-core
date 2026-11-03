@@ -17,6 +17,7 @@ import {
 } from "grainjs";
 import debounce from "lodash/debounce";
 import * as weasel from "popweasel";
+import { uniqueId } from "underscore";
 
 const t = makeT("menus");
 
@@ -55,6 +56,10 @@ export function menu(createFunc: weasel.MenuCreateFunc, options?: weasel.IMenuOp
 
 export interface SearchableMenuOptions {
   searchInputPlaceholder?: string;
+  /** Extra args for the search input (e.g. to focus it, or add a test id). */
+  searchInputArgs?: DomElementArg[];
+  /** If set, builds what to show in place of items when none match the search. */
+  buildEmptyMessage?: () => DomContents;
 }
 
 export interface SearchableMenuItem {
@@ -66,41 +71,54 @@ export interface SearchableMenuItem {
   args?: DomElementArg[];
 }
 
+/**
+ * Builds the contents of a menu with a search input that filters `menuItems` by their `cleanText`.
+ */
 export function searchableMenu(
   menuItems: MaybeObsArray<SearchableMenuItem>,
   options: SearchableMenuOptions = {},
 ): DomElementArg[] {
-  const { searchInputPlaceholder } = options;
+  const { searchInputPlaceholder, searchInputArgs = [], buildEmptyMessage } = options;
 
   const searchValue = Observable.create(null, "");
-  const setSearchValue = debounce((value) => { searchValue.set(value); }, 100);
+  const setSearchValue = debounce((value: string) => {
+    if (!searchValue.isDisposed()) { searchValue.set(value); }
+  }, 100);
+  const filteredItems = Computed.create(null, (use) => {
+    const cleanSearchValue = use(searchValue).trim().toLowerCase();
+    const items = Array.isArray(menuItems) ? menuItems : use(menuItems);
+    return items.filter(item => item.cleanText.includes(cleanSearchValue));
+  });
 
   return [
+    dom.autoDispose(searchValue),
+    dom.autoDispose(filteredItems),
     menuItemStatic(
       cssMenuSearch(
         cssMenuSearchIcon("Search"),
         cssMenuSearchInput(
-          dom.autoDispose(searchValue),
           dom.on("input", (_ev, elem) => { setSearchValue(elem.value); }),
           { placeholder: searchInputPlaceholder },
           testId("searchable-menu-input"),
+          ...searchInputArgs,
         ),
       ),
     ),
     menuDivider(),
-    dom.domComputed(searchValue, (value) => {
-      const cleanSearchValue = value.trim().toLowerCase();
-      return dom.forEach(menuItems, (item) => {
-        if (!item.cleanText.includes(cleanSearchValue)) { return null; }
-        if (item.label && item.action) {
-          return menuItem(item.action, item.label, ...(item.args || []));
-        } else if (item.builder) {
-          return item.builder();
-        } else {
-          throw new Error("Invalid menu item");
-        }
-      });
-    }),
+    dom.domComputed(
+      use => Boolean(buildEmptyMessage) && use(filteredItems).length === 0,
+      isEmpty => isEmpty ?
+        buildEmptyMessage!() :
+        dom.forEach(filteredItems, (item) => {
+          if (item.label && item.action) {
+            return menuItem(item.action, item.label, ...(item.args || []));
+          } else if (item.builder) {
+            return item.builder();
+          } else {
+            throw new Error("Invalid menu item");
+          }
+        }),
+    ),
     testId("searchable-menu"),
   ];
 }
@@ -207,10 +225,16 @@ export const menuItemStyle = `
     color: ${theme.menuItemSelectedFg};
     --icon-color: ${theme.menuItemSelectedFg};
   }
-  &.disabled {
+  &.disabled, &.disabled:hover, &[aria-disabled="true"], &[aria-disabled="true"]:hover {
     cursor: default;
     color: ${theme.menuItemDisabledFg};
     --icon-color: ${theme.menuItemDisabledFg};
+  }
+`;
+
+const menuGroupStyle = `
+  .${weasel.cssMenuGroup.className} [role="presentation"] {
+    padding: 0;
   }
 `;
 
@@ -535,7 +559,7 @@ export function autocomplete(
 export function selectMenu(
   label: DomElementArg,
   items: () => DomElementArg[],
-  ...args: IDomArgs<HTMLDivElement>
+  ...args: IDomArgs<HTMLButtonElement>
 ) {
   return cssSelectBtn(
     label,
@@ -555,7 +579,9 @@ export function listOfMenuItems(items: () => DomElementArg[]) {
       menuWrapCssClass: cssMenuWrapElem.className,
       stretchToSelector: `.${cssSelectBtn.className}`,
       trigger: [(triggerElem, ctl) => {
-        const isDisabled = () => triggerElem.classList.contains("disabled");
+        const isDisabled = () => (
+          triggerElem.classList.contains("disabled") || triggerElem.getAttribute("aria-disabled") === "true"
+        );
         dom.onElem(triggerElem, "click", () => isDisabled() || ctl.toggle());
         dom.onKeyElem(triggerElem as HTMLElement, "keydown", {
           ArrowDown: () => isDisabled() || ctl.open(),
@@ -594,7 +620,24 @@ export const cssPointer = styled("div", `
   cursor: pointer;
 `);
 
-export const menuText = styled("div", `
+/**
+ * This automatically adds the menu text as the parent menu's aria-describedby,
+ * so that the help text gets vocalized by screen readers when opening the menu.
+ */
+const menuTextAutoDescription = (...args: IDomArgs<HTMLDivElement>) => dom(
+  "div",
+  { id: uniqueId("menu-text-"), role: "presentation" },
+  (el) => {
+    setTimeout(() => {
+      const menu = el.closest('[role="menu"], [role="listbox"]');
+      const existingDesc = menu?.getAttribute("aria-describedby") || "";
+      menu?.setAttribute("aria-describedby", existingDesc ? `${existingDesc} ${el.id}` : el.id);
+    }, 0);
+  },
+  ...args,
+);
+
+const menuTextStyle = `
   display: flex;
   align-items: center;
   font-size: ${vars.smallFontSize};
@@ -602,9 +645,30 @@ export const menuText = styled("div", `
   padding: 8px 24px 4px 24px;
   max-width: 250px;
   cursor: default;
-`);
+`;
+
+/**
+ * A menu text element that automatically adds itself as the menu's aria-describedby attribute,
+ * so that the text gets vocalized by screen readers when opening the menu.
+ */
+export const menuText = styled(menuTextAutoDescription, menuTextStyle);
+
+/**
+ * A menu text element that just shows text, without impacting menu's aria-describedby attribute.
+ * This should be manually tied to something with aria-describedby attribute, such as a menu item,
+ * as screen reader users can't access the text directly.
+ */
+export const bareMenuText = styled("div", menuTextStyle);
 
 export const menuItem = styled(weasel.menuItem, menuItemStyle);
+
+export const menuItemCheckbox = styled(weasel.menuItemCheckbox, menuItemStyle);
+
+const styledMenuGroup = styled(weasel.menuGroup, menuGroupStyle);
+
+export const menuGroup = (heading: DomElementArg, ...args: DomElementArg[]) => {
+  return styledMenuGroup(menuSubHeader(heading), ...args);
+};
 
 export const menuItemLink = styled(weasel.menuItemLink, menuItemStyle);
 
@@ -732,6 +796,7 @@ export const cssOptionRowIcon = styled(icon, `
     background-color: ${theme.menuItemSelectedFg};
   }
 
+  .${weasel.cssMenuItem.className}[aria-disabled="true"] &,
   .${weasel.cssMenuItem.className}.disabled & {
     background-color: ${theme.menuItemDisabledFg};
   }
@@ -754,6 +819,7 @@ export const cssOptionLabel = styled("div", `
     background-color: ${theme.menuItemSelectedBg};
   }
 
+  .${weasel.cssMenuItem.className}[aria-disabled="true"] &,
   .${weasel.cssMenuItem.className}.disabled & {
     color: var(--grist-option-label-color-disabled);
   }
@@ -784,6 +850,7 @@ export const cssMenuItemCmd = styled("div", `
     --icon-color: ${theme.menuItemSelectedFg};
   }
 
+  .${weasel.cssMenuItem.className}[aria-disabled="true"] &,
   .${weasel.cssMenuItem.className}.disabled & {
     --icon-color: ${theme.menuItemDisabledFg};
   }
@@ -798,6 +865,7 @@ export const cssCmdKey = styled("span", `
     color: ${theme.menuItemIconSelectedFg};
   }
 
+  .${weasel.cssMenuItem.className}[aria-disabled="true"] &,
   .${weasel.cssMenuItem.className}.disabled & {
     color: ${theme.menuItemDisabledFg};
   }
@@ -861,7 +929,7 @@ const cssMenuItemSubmenu = styled("div", `
     color: ${theme.menuItemSelectedFg};
     --icon-color: ${theme.menuItemSelectedFg};
   }
-  &.disabled {
+  &.disabled, &.disabled:hover, &[aria-disabled="true"], &[aria-disabled="true"]:hover {
     cursor: default;
     color: ${theme.menuItemDisabledFg};
     --icon-color: ${theme.menuItemDisabledFg};
@@ -947,7 +1015,7 @@ export function* buildMenuItems(current: MenuItem[]): IterableIterator<Element> 
       item.icon && menuIcon(item.icon),
       item.label,
       item.shortcut && cssCmdKey(item.shortcut),
-      item.disabled ? dom.cls("disabled", item.disabled) : null,
+      item.disabled ? dom.attr("aria-disabled", "true") : null,
     );
   }
 }
