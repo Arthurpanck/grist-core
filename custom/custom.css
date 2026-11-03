@@ -41,3 +41,16 @@
 
 /* Accessibilité (in documents AND on the home page) */
 /* div:has(> .test-accessibility-shortcut) { display: none !important; } */
+
+/* ---------------------------------------------------------------------------
+ * Home page cards "Découvrir et progresser sur Grist": hide native cards.
+ * ------------------------------------------------------------------------- */
+
+/* Webinaires */
+/* .test-intro-webinars { display: none !important; } */
+
+/* Visite guidée en vidéo */
+/* .test-intro-video-tour { display: none !important; } */
+
+/* Centre d'aide (card only; custom.js still uses it as a model, so it keeps working) */
+/* .test-intro-help-center { display: none !important; } */
