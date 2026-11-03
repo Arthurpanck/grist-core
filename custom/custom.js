@@ -23,6 +23,12 @@ const customLinks = [
     inDocument: true,
   },
   {
+    text: "Discuter",
+    url: "https://discuter-mdl.territoirenumeriqueouvert.org/#/room/#Grist-Utilisateurs:discuter-mdl.territoirenumeriqueouvert.org",
+    card: "Échanger avec les utilisateurs Grist",
+    inDocument: true,
+  },
+  {
     text: "Aide IA",
     url: "https://n8n.projets.erasme.org/webhook/24be03d3-821e-461c-93a1-a79391b360ec/chat",
   },
