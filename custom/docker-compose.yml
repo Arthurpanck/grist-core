@@ -1,0 +1,28 @@
+services:
+  grist:
+    build: .
+    container_name: grist-custom
+    ports:
+      - "8484:8484"
+    environment:
+      - GRIST_DEFAULT_EMAIL=arthur@metropole-lyon.fr
+      - GRIST_SANDBOX_FLAVOR=unsandboxed  # ou gvisor si supporté
+      - GRIST_SESSION_SECRET=change-me-to-something-secret
+      - APP_STATIC_INCLUDE_CUSTOM_CSS=true
+      - GRIST_TERMS_OF_SERVICE_URL=http://localhost:8484/o/docs/  # requis pour les liens du menu de gauche
+      - GRIST_INCLUDE_CUSTOM_SCRIPT_URL=/v/1/custom.js
+      - GRIST_DEFAULT_LOCALE=fr
+
+      # Liens des cartes natives "Découvrir et progresser sur Grist"
+      - GRIST_ONBOARDING_VIDEO_ID=HyEU5k1I3ao           # carte "Visite guidée en vidéo" (ID YouTube)
+      - GRIST_WEBINARS_URL=https://www.getgrist.com/webinars/grist-101-new-users-guide  # carte "Webinaires"
+      - GRIST_HELP_CENTER=https://discuter-mdl.territoirenumeriqueouvert.org/#/room/#Grist-Utilisateurs:discuter-mdl.territoirenumeriqueouvert.org  # carte "Centre d'aide" + menu
+      - GRIST_CONTACT_SUPPORT_URL=https://services.formulaireintranet.grandlyon.com/demande-accompagnement-grist/
+
+      # Nouvelle version : sur une installation neuve, Grist demande une "boot key"
+      # (affichée dans les logs). Mettre à true pour passer directement en service.
+      - GRIST_IN_SERVICE=true
+
+    volumes:
+      - ./persist:/persist
+    restart: unless-stopped
