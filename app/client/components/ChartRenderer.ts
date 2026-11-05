@@ -181,7 +181,7 @@ function formatAxisDate(time: number, span: number, withTime: boolean): string {
   if (span > 2 * 365 * day) {
     opts = d.getMonth() === 0 && d.getDate() === 1 ? { year: "numeric" } : { month: "short", year: "numeric" };
   } else if (span > 60 * day) {
-    opts = d.getDate() === 1 ? (d.getMonth() === 0 ? { month: "short", year: "numeric" } : { month: "short" }) :
+    opts = d.getDate() === 1 ? (d.getMonth() === 0 ? { year: "numeric" } : { month: "short" }) :
       { day: "numeric", month: "short" };
   } else if (span > 2 * day || !withTime) {
     opts = { day: "numeric", month: "short" };
@@ -373,7 +373,7 @@ function buildPieLike(traces: Trace[], layout: Partial<Layout>, ctx: RenderConte
 
   // Pie and donut.
   const hole = typeof (trace as any).hole === "number" ? (trace as any).hole : 0;
-  const outer = 72;
+  const outer = showLabelsFor(data.length) ? 64 : 72;
   const radius = hole ? [`${Math.round(outer * hole)}%`, `${outer}%`] : ["0%", `${outer}%`];
   const centerX = reserve.right ? "40%" : "50%";
   const centerY = reserve.top ? "54%" : (reserve.bottom ? "46%" : "50%");
@@ -409,6 +409,7 @@ function buildPieLike(traces: Trace[], layout: Partial<Layout>, ctx: RenderConte
         show: showLabels,
         color: colors.fg,
         fontSize: 12,
+        overflow: "none",
         formatter: (p: any) => `{n|${p.name}}\n{p|${showValues ? fmtValue(p.value, label) + " · " : ""}` +
           `${p.percent?.toFixed(p.percent < 10 ? 1 : 0)} %}`,
         rich: {
@@ -421,6 +422,10 @@ function buildPieLike(traces: Trace[], layout: Partial<Layout>, ctx: RenderConte
       data,
     }],
   };
+}
+
+function showLabelsFor(count: number) {
+  return count <= 12;
 }
 
 function buildCartesian(traces: Trace[], layout: Partial<Layout>, ctx: RenderContext, colors: ChartColors,
@@ -436,7 +441,7 @@ function buildCartesian(traces: Trace[], layout: Partial<Layout>, ctx: RenderCon
   // Like Plotly, numbers go on a numeric axis (also for bars), and text on a category axis. Bars
   // over dates are shown as categories, which reads better than thin bars on a time line.
   let labelKind: AxisKind = detectAxisKind(allLabels);
-  if (isBar && labelKind === "time") { labelKind = "category"; }
+  if (isBar && labelKind === "time" && new Set(allLabels).size <= 24) { labelKind = "category"; }
   const forcedCategory = ((layout as any)[`${labelKey}axis`]?.type === "category");
   if (forcedCategory) { labelKind = "category"; }
 
@@ -621,7 +626,7 @@ function buildCartesian(traces: Trace[], layout: Partial<Layout>, ctx: RenderCon
   const xTitle = horizontal ? valueTitle : labelTitle;
   const yTitle = horizontal ? labelTitle : valueTitle;
 
-  const axisLabelStyle = { color: colors.muted, fontSize: 11, hideOverlap: true };
+  const axisLabelStyle = { color: colors.muted, fontSize: 12, hideOverlap: true };
   const axisNameStyle = { color: colors.muted, fontSize: 12, fontWeight: 500 };
 
   const labelAxis: any = {
@@ -669,10 +674,6 @@ function buildCartesian(traces: Trace[], layout: Partial<Layout>, ctx: RenderCon
     // A scatter plot doesn't need to include zero.
     scale: chartType === "scatter" || chartType === "kaplan_meier" ? chartType === "scatter" : false,
   };
-  if (labelKind === "category" && horizontal) {
-    // First category on top.
-    labelAxis.inverse = true;
-  }
   if (chartType === "scatter") {
     // Both axes are values.
     labelAxis.scale = true;
@@ -684,7 +685,7 @@ function buildCartesian(traces: Trace[], layout: Partial<Layout>, ctx: RenderCon
     Object.assign(xAxis, { name: xTitle, nameLocation: "middle", nameGap: 0, nameTextStyle: axisNameStyle });
   }
   if (yTitle) {
-    Object.assign(yAxis, { name: yTitle, nameLocation: "end", nameGap: 12,
+    Object.assign(yAxis, { name: yTitle, nameLocation: yAxis.inverse ? "start" : "end", nameGap: 12,
       nameTextStyle: { ...axisNameStyle, align: "left", padding: [0, 0, 0, -8] } });
   }
 

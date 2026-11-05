@@ -376,7 +376,9 @@ export function groupsToTraces(block: DashboardBlock, groups: GroupsResult, seri
   let trace: Trace;
   switch (type) {
     case "hbar":
-      trace = { type: "bar", orientation: "h", x: groups.values as any, y: groups.labels, name: seriesName, meta };
+      // Horizontal bars are drawn from the bottom up: reverse, so the biggest values come first.
+      trace = { type: "bar", orientation: "h", x: groups.values.slice().reverse() as any,
+        y: groups.labels.slice().reverse(), name: seriesName, meta };
       break;
     case "line":
       trace = { type: "scatter", mode: "lines+markers", x: groups.labels, y: groups.values as any, name: seriesName,
