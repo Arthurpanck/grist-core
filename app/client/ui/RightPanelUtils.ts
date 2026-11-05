@@ -29,6 +29,9 @@ export function getFieldType(widgetType: IWidgetType | null) {
     ["custom", {
       label: rpanelT("columns", { count: 1 }), icon: "TypeCell", pluralLabel: rpanelT("columns", { count: 2 }),
     }],
+    ["dashboard", {
+      label: rpanelT("blocks", { count: 1 }), icon: "TypeDashboard", pluralLabel: rpanelT("blocks", { count: 2 }),
+    }],
     ["form", {
       label: rpanelT("fields", { count: 1 }), icon: "TypeCell", pluralLabel: rpanelT("fields", { count: 2 }),
     }],

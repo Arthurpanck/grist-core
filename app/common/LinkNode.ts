@@ -236,8 +236,8 @@ export function isValidLink(source: LinkNode, target: LinkNode) {
     return false;
   }
 
-  // cannot select from chart
-  if (source.widgetType === "chart") {
+  // cannot select from chart or dashboard
+  if (source.widgetType === "chart" || source.widgetType === "dashboard") {
     return false;
   }
 

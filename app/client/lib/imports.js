@@ -30,7 +30,8 @@ exports.loadAce = () => import("ace-builds")
   });
 exports.loadEmojiPicker = () => import("app/client/ui/EmojiPicker" /* webpackChunkName: "emojipicker" */);
 exports.loadMomentTimezone = () => import("moment-timezone").then(m => m.default);
-exports.loadPlotly = () => import("plotly.js-basic-dist" /* webpackChunkName: "plotly" */);
+exports.loadECharts = () => import("app/client/lib/echartsBundle" /* webpackChunkName: "echarts" */)
+  .then(m => m.echarts);
 // Toast UI Calendar, used by the native CalendarView. Its stylesheet is served from static/ (a
 // symlink into node_modules, as swagger-ui.css is) and loaded as a <link>, so it stays out of the
 // bundle. The whole loader is memoized so concurrent mounts share the same in-flight promise (no

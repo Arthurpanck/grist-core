@@ -14,6 +14,7 @@
  * tab from the outside (e.g. when GristDoc is disposed).
  */
 import * as commands from "app/client/components/commands";
+import { buildDashboardConfig } from "app/client/components/DashboardView";
 import { FieldModel } from "app/client/components/Forms/Field";
 import { FormView } from "app/client/components/Forms/FormView";
 import { MappedFieldsConfig } from "app/client/components/Forms/MappedFieldsConfig";
@@ -239,7 +240,8 @@ export class RightPanel extends Disposable {
             widgetInfo.getLabel(),
             testId("right-tab-pagewidget"),
           ),
-          cssTopBarItem(
+          // A dashboard has no fields to configure.
+          type === "dashboard" ? null : cssTopBarItem(
             this._topTabComponents.tab("field"),
             cssTopBarIcon(fieldInfo.icon),
             fieldInfo.label,
@@ -567,6 +569,12 @@ export class RightPanel extends Disposable {
         ),
       ),
 
+      dom.maybe(use => use(this._pageWidgetType) === "dashboard", () =>
+        dom("div", { "role": "group", "aria-label": t("Dashboard") },
+          buildDashboardConfig(activeSection),
+        ),
+      ),
+
       dom.maybe(use => use(this._pageWidgetType) === "custom", () => {
         const parts = vct._buildCustomTypeItems() as any[];
         return [
@@ -596,6 +604,7 @@ export class RightPanel extends Disposable {
         use => !(
           use(hasCustomMapping) ||
           use(this._pageWidgetType) === "chart" ||
+          use(this._pageWidgetType) === "dashboard" ||
           use(activeSection.isRaw)
         ) && use(activeSection.parentKey) !== "form",
         () => [

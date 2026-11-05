@@ -17,7 +17,7 @@ export const DEFAULT_VIEW_SECTION_OPTIONS = {
 
 // all widget types; "custom.calendar" exists only for old documents, new code never sets it.
 export type IWidgetType =
-  "record" | "detail" | "single" | "chart" | "calendar" | "custom" | "form" | "custom.calendar";
+  "record" | "detail" | "single" | "chart" | "calendar" | "custom" | "form" | "custom.calendar" | "dashboard";
 
 export enum WidgetType {
   Table = "record",
@@ -27,6 +27,7 @@ export enum WidgetType {
   Custom = "custom",
   Form = "form",
   Calendar = "calendar",
+  Dashboard = "dashboard",
 }
 
 // Identifiers of the retired calendar custom widget. Old documents may have plain "custom"

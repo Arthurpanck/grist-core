@@ -80,9 +80,12 @@ describe("Printing", function() {
     await gu.getPageItem("Cards and Chart").click();
     await checkPrintSection("COUNTRIES [By Continent] Chart", async () => {
       await gu.waitToPass(async () => {
-        // Expect to see all Continents listed, by population, excluding the filtered-out Antarctica.
-        assert.deepEqual(await driver.findAll(".print-widget .legendtext", el => el.getText()),
-          ["Africa", "Asia", "Europe", "North America", "Oceania", "South America"]);
+        // Expect to see all Continents listed, excluding the filtered-out Antarctica.
+        const texts = await driver.findAll(".print-widget .test-chart-canvas svg text", el => el.getText());
+        for (const continent of ["Africa", "Asia", "Europe", "North America", "Oceania", "South America"]) {
+          assert.include(texts, continent);
+        }
+        assert.notInclude(texts, "Antarctica");
       }, 5000);
     });
   });

@@ -62,7 +62,7 @@
 }
 
 /*
- * The chart div needs to be measured before its relayout() call, and "@media print" is not in
+ * The chart div needs to be measured before it is resized for printing, and "@media print" is not in
  * effect for that measurement, so we temporarily resize the chart for all @media, to a plausible
  * size for printing.
  */

@@ -122,7 +122,7 @@ function getCompatibleTypes(tableId: TableRef,
   { isNewPage, summarize }: ICompatibleTypes): IWidgetType[] {
   let compatibleTypes: IWidgetType[] = [];
   if (tableId !== "New Table") {
-    compatibleTypes = ["record", "single", "detail", "chart", "calendar", "custom", "form"];
+    compatibleTypes = ["record", "single", "detail", "chart", "calendar", "dashboard", "custom", "form"];
   } else if (isNewPage) {
     // New view + new table means we'll be switching to the primary view.
     compatibleTypes = ["record", "form"];
@@ -137,7 +137,7 @@ function getCompatibleTypes(tableId: TableRef,
 // This function return a boolean telling if summary can be used with this type.
 function isSummaryCompatible(widgetType: IWidgetType): boolean {
   // Forms add records, which a summary table does not accept.
-  const incompatibleTypes: IWidgetType[] = ["form"];
+  const incompatibleTypes: IWidgetType[] = ["form", "dashboard"];
   return !incompatibleTypes.includes(widgetType);
 }
 
@@ -326,7 +326,7 @@ export interface ISelectOptions {
 
 // the list of widget types in the order they should be listed by the widget.
 const sectionTypes: IWidgetType[] = [
-  "record", "single", "detail", "form", "chart", "calendar", "custom",
+  "record", "single", "detail", "form", "chart", "dashboard", "calendar", "custom",
 ];
 
 // Returns dom that let a user select a page widget. User can select a widget type (id: 'grid',

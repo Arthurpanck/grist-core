@@ -4,6 +4,7 @@ import { CalendarView } from "app/client/components/CalendarView";
 import { ChartView } from "app/client/components/ChartView";
 import * as commands from "app/client/components/commands";
 import { CustomView } from "app/client/components/CustomView";
+import { DashboardView } from "app/client/components/DashboardView";
 import DetailView from "app/client/components/DetailView";
 import { buildDuplicateWidgetModal } from "app/client/components/duplicateWidget";
 import { FormView } from "app/client/components/Forms/FormView";
@@ -53,6 +54,7 @@ const viewSectionTypes: { [key: string]: any } = {
   chart: ChartView,
   single: DetailView,
   calendar: CalendarView,
+  dashboard: DashboardView,
   custom: CustomView,
   form: FormView,
 };

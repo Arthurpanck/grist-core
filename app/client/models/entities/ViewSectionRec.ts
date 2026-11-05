@@ -86,6 +86,11 @@ export interface ChartOptions {
   isXAxisUndefined?: boolean;
   orientation?: "v" | "h";
   aggregate?: boolean;
+  // Presentation options (ECharts renderer).
+  palette?: string;             // Id of a palette in CHART_PALETTES (see ChartRenderer.ts).
+  showValues?: boolean;         // Show data labels on the chart.
+  smooth?: boolean;             // Smooth lines (line and area charts).
+  legendPosition?: "top" | "bottom" | "right" | "none";
 }
 
 export interface ViewSectionOptions extends ChartOptions {
@@ -100,6 +105,9 @@ export interface ViewSectionOptions extends ChartOptions {
 
   // Options for the native CalendarView.
   calendarViewPerspective?: "day" | "week" | "month";   // Last-used calendar view.
+
+  // Options for the DashboardView: the list of its blocks (see DashboardData.ts).
+  dashboard?: { blocks: any[] };
 
   // Other options.
   customView?: string;    // Configuration for custom widgets in JSON format.

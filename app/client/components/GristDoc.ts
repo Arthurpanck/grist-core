@@ -794,7 +794,7 @@ export class GristDocImpl extends DisposableWithEvents implements GristDoc {
       if (section.isDisposed() || section._isDeleted.peek()) {
         return;
       }
-      if (["chart", "custom"].includes(section.parentKey.peek())) {
+      if (["chart", "custom", "dashboard"].includes(section.parentKey.peek())) {
         commands.allCommands.viewTabFocus.run();
       }
     }));

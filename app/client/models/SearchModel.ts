@@ -328,7 +328,7 @@ class FinderImpl implements IFinder {
   private _initNewSectionShown() {
     this._initNewSectionCommon();
     const viewInstance = this._sectionStepper.value.viewInstance.peek()!;
-    const skip = ["chart"].includes(this._sectionStepper.value.parentKey.peek());
+    const skip = ["chart", "dashboard"].includes(this._sectionStepper.value.parentKey.peek());
     this._rowStepper.array = skip ? [] : viewInstance.sortedRows.getKoArray().peek() as number[];
   }
 
@@ -336,7 +336,7 @@ class FinderImpl implements IFinder {
     const tableModel = this._initNewSectionCommon();
 
     const viewInstance = this._sectionStepper.value.viewInstance.peek();
-    const skip = ["chart"].includes(this._sectionStepper.value.parentKey.peek());
+    const skip = ["chart", "dashboard"].includes(this._sectionStepper.value.parentKey.peek());
     if (skip) {
       this._rowStepper.array = [];
     } else if (viewInstance) {

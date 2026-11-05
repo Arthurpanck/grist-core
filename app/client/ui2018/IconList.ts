@@ -14,6 +14,7 @@ export const IconList = [
   "TypeCell",
   "TypeChart",
   "TypeCustom",
+  "TypeDashboard",
   "TypeDetails",
   "TypeTable",
   "FieldAny",

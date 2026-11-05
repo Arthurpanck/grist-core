@@ -10,10 +10,34 @@ export interface ChartData {
   layout: Layout;
 }
 
+// Chart types are picked from a grid of tiles. Tests name them as they used to be named in the
+// old dropdown, so map those names to the tiles.
+const CHART_TYPE_TILES: { [name: string]: string } = {
+  "Bar chart": "column",
+  "Horizontal bar chart": "hbar",
+  "Pie chart": "pie",
+  "Donut chart": "donut",
+  "Area chart": "area",
+  "Line chart": "line",
+  "Scatter plot": "scatter",
+  "Kaplan-Meier plot": "kaplan_meier",
+  "Funnel chart": "funnel",
+  "Treemap": "treemap",
+};
+
 export async function selectChartType(chartType: string) {
-  await driver.findWait(".test-chart-type", 1000).click();
-  await gu.findOpenMenuItem(".test-select-row", chartType).click();
+  const tile = CHART_TYPE_TILES[chartType];
+  if (!tile) { throw new Error(`Unknown chart type ${chartType}`); }
+  await driver.findWait(`.test-chart-type-${tile}`, 1000).click();
   return gu.waitForServer();
+}
+
+// Returns the selected chart type, named as in selectChartType().
+export async function getSelectedChartType(): Promise<string> {
+  const selected = await driver.findWait(".test-chart-type-tile[aria-checked=true]", 1000);
+  const classes = (await selected.getAttribute("class")).split(/\s+/);
+  const entry = Object.entries(CHART_TYPE_TILES).find(([, tile]) => classes.includes(`test-chart-type-${tile}`));
+  return entry ? entry[0] : "";
 }
 
 export async function getChartData(chartElem?: WebElement | string): Promise<ChartData> {
@@ -21,16 +45,30 @@ export async function getChartData(chartElem?: WebElement | string): Promise<Cha
     const section = isString(chartElem) ?
       await gu.getSection(chartElem) :
       await driver.findWait(".active_section", 4000);
-    chartElem = await section.findWait(".test-chart-container.js-plotly-plot", 5_000);
+    chartElem = await section.findWait(".test-chart-container", 5_000);
+    await driver.wait(() => driver.executeScript((el: any) => Boolean(el.data), chartElem), 5_000);
   }
   return driver.executeScript((el: any) => ({ data: el.data, layout: el.layout }), chartElem);
 }
 
+// Less common options are in a collapsed "Advanced options" part of the panel.
+export async function openAdvancedOptions() {
+  if (!await driver.findContent("label", /Invert Y-axis/).isPresent()) {
+    await driver.findWait(".test-chart-advanced", 1000).click();
+  }
+}
+
 export function checkAxisRange({ layout }: ChartData, xMin: number, xMax: number, yMin: number, yMax: number) {
-  assert.closeTo(layout.xaxis.range![0], xMin, xMin * 0.1);
-  assert.closeTo(layout.xaxis.range![1], xMax, xMax * 0.1);
-  assert.closeTo(layout.yaxis.range![0], yMin, yMin * 0.1);
-  assert.closeTo(layout.yaxis.range![1], yMax, yMax * 0.1);
+  // Axis ranges are as computed by the chart library, which rounds them to "nice" values: compare
+  // with a tolerance relative to the size of the range.
+  const actual = [layout.xaxis.range![0], layout.xaxis.range![1], layout.yaxis.range![0], layout.yaxis.range![1]];
+  const expected = [xMin, xMax, yMin, yMax];
+  const tol = (a: number, b: number) => Math.abs(b - a) * 0.1;
+  const message = `axis ranges ${JSON.stringify(actual)}, expected ${JSON.stringify(expected)}`;
+  assert.closeTo(actual[0], xMin, tol(xMin, xMax), message);
+  assert.closeTo(actual[1], xMax, tol(xMin, xMax), message);
+  assert.closeTo(actual[2], yMin, tol(yMin, yMax), message);
+  assert.closeTo(actual[3], yMax, tol(yMin, yMax), message);
 }
 
 export function getAxisTitle(axis: Partial<LayoutAxis>): string | undefined {

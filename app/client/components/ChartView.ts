@@ -1,10 +1,14 @@
 import BaseView from "app/client/components/BaseView";
+import {
+  buildEChartsOption, CHART_PALETTES, DEFAULT_PALETTE, EChartsHost, formatFull, getChartColors,
+  getPaletteColors,
+} from "app/client/components/ChartRenderer";
+import * as commands from "app/client/components/commands";
 import { GristDoc } from "app/client/components/GristDoc";
 import { consolidateValues, formatPercent, sortByXValues, splitValuesByIndex,
   uniqXValues } from "app/client/lib/chartUtil";
 import { Delay } from "app/client/lib/Delay";
 import { fromKoSave } from "app/client/lib/fromKoSave";
-import { loadPlotly, PlotlyType } from "app/client/lib/imports";
 import { makeT } from "app/client/lib/localization";
 import { ColumnRec, ViewFieldRec, ViewSectionRec } from "app/client/models/DocModel";
 import { ChartOptions, ViewSectionOptions } from "app/client/models/entities/ViewSectionRec";
@@ -33,15 +37,12 @@ import clamp from "lodash/clamp";
 import debounce from "lodash/debounce";
 import defaultsDeep from "lodash/defaultsDeep";
 import isNumber from "lodash/isNumber";
-import merge from "lodash/merge";
 import sum from "lodash/sum";
 import union from "lodash/union";
 import moment from "moment-timezone";
 
 import type { Annotations, Config, Datum, ErrorBar, Layout, LayoutAxis, Margin,
   PlotData as PlotlyPlotData } from "plotly.js";
-
-let Plotly: PlotlyType;
 
 // When charting multiple series based on user data, limit the number of series given to plotly.
 const MAX_SERIES_IN_CHART = 100;
@@ -52,16 +53,16 @@ const testId = makeTestId("test-chart-");
 
 const t = makeT("ChartView");
 
-function isPieLike(chartType: string) {
-  return ["pie", "donut"].includes(chartType);
+export function isPieLike(chartType: string) {
+  return ["pie", "donut", "funnel", "treemap"].includes(chartType);
 }
 
 function firstFieldIsLabels(chartType: string) {
-  return ["pie", "donut", "kaplan_meier", "scatter"].includes(chartType);
+  return ["pie", "donut", "funnel", "treemap", "kaplan_meier", "scatter"].includes(chartType);
 }
 
 export function isNumericOnly(chartType: string) {
-  return ["bar", "pie", "donut", "kaplan_meier", "line", "area", "scatter"].includes(chartType);
+  return ["bar", "pie", "donut", "funnel", "treemap", "kaplan_meier", "line", "area", "scatter"].includes(chartType);
 }
 
 // Returns the type of the visibleCol if col is of type `Ref`, otherwise returns the type of col.
@@ -111,7 +112,7 @@ function getSeriesName(series: Series, haveMultiple: boolean) {
   }
 }
 
-type Data = Partial<PlotlyPlotData>;
+type Data = Partial<PlotlyPlotData> & { meta?: any };
 
 // The output of a ChartFunc. Normally it just returns one or more Data[] series, but sometimes it
 // includes layout information: e.g. a "Scatter plot" returns a Layout with axis labels.
@@ -150,6 +151,24 @@ function dateGetter(getter: RowPropGetter, timezone: string): RowPropGetter {
   };
 }
 
+/**
+ * Formats a value with the column's formatter. When the column has no particular number format
+ * (the formatter returns the bare number), add thousands separators, to make large numbers
+ * readable (338106 -> 338 106).
+ */
+export function formatChartValue(value: any, formatter?: BaseFormatter): string {
+  let text: string;
+  try {
+    text = formatter ? formatter.formatAny(value) : String(value);
+  } catch (e) {
+    text = String(value);
+  }
+  if (typeof value === "number" && text === String(value)) {
+    return formatFull(value);
+  }
+  return text;
+}
+
 // List of column types whose values are encoded has list, ie: ['L', 'foo', ...]. Such values
 // require special treatment to show correctly in charts.
 const LIST_TYPES = ["ChoiceList", "RefList"];
@@ -161,10 +180,14 @@ export class ChartView extends BaseView {
   private _chartType: ko.Observable<string>;
   private _options: ObjObservable<ViewSectionOptions>;
   private _chartDom: HTMLElement;
+  private _canvasDom: HTMLElement;
+  private _echarts: EChartsHost;
+  private _isEmpty = Observable.create<false | "noAxis" | "noSeries" | "noData">(this, false);
   private _update: () => void;
   private _resize: () => void;
 
   private _formatterComp: ko.Computed<BaseFormatter | undefined>;
+  private _formattersComp: ko.Computed<Map<string, BaseFormatter>>;
 
   // peek section's sort spec
   private get _sortSpec() { return this.viewSection.activeSortSpec.peek(); }
@@ -174,7 +197,12 @@ export class ChartView extends BaseView {
 
     // Note that .viewPane is used by ViewLayout to insert the actual DOM into the document.
     this._chartDom = this.viewPane = this.buildDom();
-    this.onDispose(() => { dom.domDispose(this.viewPane); this.viewPane.remove(); });
+    this._echarts = new EChartsHost(this._canvasDom);
+    this.onDispose(() => {
+      this._echarts.dispose();
+      dom.domDispose(this.viewPane);
+      this.viewPane.remove();
+    });
 
     this._resize = this.autoDispose(Delay.untilAnimationFrame(this._resizeChart, this));
 
@@ -186,6 +214,15 @@ export class ChartView extends BaseView {
     this._formatterComp = this.autoDispose(ko.computed(() => {
       const field = this.viewSection.viewFields().at(1);
       return field?.visibleColFormatter();
+    }));
+
+    // Formatters of all fields, by label, used to show values in tooltips and data labels.
+    this._formattersComp = this.autoDispose(ko.computed(() => {
+      const map = new Map<string, BaseFormatter>();
+      for (const field of this.viewSection.viewFields().all()) {
+        map.set(field.label(), field.visibleColFormatter());
+      }
+      return map;
     }));
 
     this._update = debounce(() => this._updateView(), 0);
@@ -204,11 +241,12 @@ export class ChartView extends BaseView {
     this.listenTo(this.sortedRows, "rowNotify", this._update);
     this.autoDispose(this.sortedRows.getKoArray().subscribe(this._update));
     this.autoDispose(this._formatterComp.subscribe(this._update));
+    this.autoDispose(this._formattersComp.subscribe(this._update));
     this.autoDispose(gristThemeObs().addListener(() => this._update()));
   }
 
   public prepareToPrint(onOff: boolean) {
-    Plotly.relayout(this._chartDom, {}).catch(reportError);
+    this._resizeChart();
   }
 
   public onResize() {
@@ -221,7 +259,41 @@ export class ChartView extends BaseView {
   }
 
   protected buildDom() {
-    return dom("div.chart_container", testId("container"));
+    return dom("div.chart_container", testId("container"),
+      this._canvasDom = cssChartCanvas(testId("canvas")),
+      dom.domComputed(this._isEmpty, empty => empty ? this._buildEmptyState(empty) : null),
+    );
+  }
+
+  // Friendly placeholder shown instead of a blank chart, telling the user what to do next.
+  private _buildEmptyState(reason: "noAxis" | "noSeries" | "noData") {
+    const chartType = this._chartType?.peek();
+    const pieLike = chartType ? isPieLike(chartType) : false;
+    const title = reason === "noData" ? t("Nothing to show yet") : t("Almost there!");
+    const text = reason === "noAxis" ?
+      (pieLike ? t("Pick the column whose values will name each slice.") :
+        t("Pick the column to use for the X-axis (for example a date or a category).")) :
+      reason === "noSeries" ?
+        t("Add a series: the numeric column you want to measure (amount, quantity...).") :
+        t("The selected columns don't contain numbers to draw. Check the series or add some data.");
+    return cssEmptyState(
+      cssEmptyIllustration(
+        ...[0.45, 0.8, 0.6, 1].map((h, i) => cssEmptyBar(dom.style("height", `${h * 100}%`),
+          dom.style("animation-delay", `${i * 120}ms`))),
+      ),
+      cssEmptyTitle(title),
+      cssEmptyText(text),
+      reason === "noData" ? null : cssEmptyButton(
+        icon("Settings"), t("Configure the chart"),
+        dom.on("click", (ev) => {
+          ev.stopPropagation();
+          this.viewSection.hasFocus(true);
+          commands.allCommands.viewTabOpen.run();
+        }),
+        testId("empty-configure"),
+      ),
+      testId("empty"),
+    );
   }
 
   private async _updateView() {
@@ -269,6 +341,10 @@ export class ChartView extends BaseView {
 
     const dataOptions: DataOptions = {};
     const options: ChartOptions = this._options.peek() || {};
+
+    const chartType = this._chartType.peek();
+    const isUndefinedX = Boolean(options.isXAxisUndefined) || fields.length === 0;
+    const minSeries = startIndexForYAxis + (isPieLike(chartType) ? 0 : 1);
     let plotData: PlotData = { data: [] };
 
     if (isPieLike(this._chartType.peek())) {
@@ -310,27 +386,46 @@ export class ChartView extends BaseView {
       }
     }
 
-    Plotly = Plotly || await loadPlotly();
-
-    // Loading plotly is asynchronous and it may happen that the chart view had been disposed in the
-    // meantime and cause error later. So let's check again.
-    if (this.isDisposed()) { return; }
+    const hasValues = plotData.data.some((trace) => {
+      const vals: any = (trace as any).values ??
+        (options.orientation === "h" && trace.type === "bar" ? trace.x : trace.y);
+      return Array.isArray(vals) && vals.some(v => typeof v === "number");
+    });
+    const empty = isUndefinedX ? "noAxis" :
+      (series.length < minSeries ? "noSeries" : (hasValues ? false : "noData"));
+    this._isEmpty.set(empty);
 
     const layout: Partial<Layout> = defaultsDeep(plotData.layout, this._getPlotlyLayout(options));
-    const config: Partial<Config> = { ...plotData.config, displayModeBar: false };
-    // react() can be used in place of newPlot(), and is faster when updating an existing plot.
-    await Plotly.react(this._chartDom, plotData.data, layout, config);
+    // Keep the computed data around for tests and debugging (it used to be on the Plotly element).
+    Object.assign(this._chartDom, { data: plotData.data, layout });
+
+    const formatters = this._formattersComp.peek();
+    const firstFormatter = this._formatterComp.peek();
+    const formatValue = (value: any, label?: string) => {
+      const formatter = (label !== undefined && formatters.get(label)) || firstFormatter;
+      return formatChartValue(value, formatter);
+    };
+    const option = buildEChartsOption({ data: plotData.data, layout }, {
+      chartType, options, formatValue,
+    }, getChartColors(options.palette));
+    try {
+      await this._echarts.render(option, `${chartType}:${options.orientation}`);
+    } catch (e) {
+      reportError(e as Error);
+    }
+    if (this.isDisposed()) { return; }
     this._resizeChart();
+    // Expose the axes ECharts settled on, for tests.
+    const axes = this._echarts.getAxesInfo();
+    for (const [dim, info] of Object.entries(axes)) {
+      const key = `${dim}axis` as "xaxis" | "yaxis";
+      (layout as any)[key] = { ...(layout as any)[key], type: info.type, range: info.range };
+    }
   }
 
   private _resizeChart() {
-    if (this.isDisposed() || !Plotly || !this._chartDom.parentNode) { return; }
-    // Check if the chart is visible before resizing. If it's not visible, Plotly will throw an error.
-    const display = window.getComputedStyle(this._chartDom).display;
-    if (!display || display === "none") {
-      return;
-    }
-    Plotly.Plots.resize(this._chartDom);
+    if (this.isDisposed() || !this._chartDom.parentNode) { return; }
+    this._echarts.resize();
   }
 
   private _isCompatibleSeries(col: ColumnRec) {
@@ -355,42 +450,9 @@ export class ChartView extends BaseView {
       } as Margin,
       yaxis,
       xaxis,
-      ...(options.stacked ? { barmode: "relative" } : {}),
+      ...(options.stacked ? { barmode: "relative" as const } : {}),
     };
-    return merge(layout, this._getPlotlyTheme());
-  }
-
-  private _getPlotlyTheme(): Partial<Layout> {
-    const { colors } = gristThemeObs().get();
-    const { chartBg, chartLegendBg, chartFg, chartXAxis, chartYAxis } = colors.components;
-    return {
-      colorway: [
-        "#2b78ae",
-        "#fe945b",
-        "#3a936e",
-        "#d34141",
-        "#8563cc",
-        "#8c564b",
-        "#db7fbf",
-        "#7f7f7f",
-        "#b3b42b",
-        "#28b4d3",
-      ],
-      paper_bgcolor: typeof chartBg === "string" ? chartBg : chartBg.getRawValue(),
-      plot_bgcolor: typeof chartBg === "string" ? chartBg : chartBg.getRawValue(),
-      xaxis: {
-        color: typeof chartXAxis === "string" ? chartXAxis : chartXAxis.getRawValue(),
-      },
-      yaxis: {
-        color: typeof chartYAxis === "string" ? chartYAxis : chartYAxis.getRawValue(),
-      },
-      font: {
-        color: typeof chartFg === "string" ? chartFg : chartFg.getRawValue(),
-      },
-      legend: {
-        bgcolor: typeof chartLegendBg === "string" ? chartLegendBg : chartLegendBg.getRawValue(),
-      },
-    };
+    return layout;
   }
 }
 
@@ -569,6 +631,9 @@ export class ChartConfig extends GrainJSDisposable {
       });
     });
 
+  // Shared by all charts, so the advanced options stay open once the user opened them.
+  private _showAdvanced = showAdvancedOptions;
+
   constructor(private _gristDoc: GristDoc, private _section: ViewSectionRec) {
     super();
     ChartConfig._instanceMap.set(_section, this);
@@ -579,86 +644,12 @@ export class ChartConfig extends GrainJSDisposable {
   public buildDom(): DomContents {
     if (this._section.parentKey() !== "chart") { return null; }
 
+    const chartType = fromKo(this._section.chartTypeDef);
+    const is = (...types: string[]) => (use: UseCB) => types.includes(use(chartType));
     return [
-      cssRow(
-        select(this._chartType, [
-          { value: "bar",          label: t("Bar chart"),         icon: "ChartBar"   },
-          { value: "pie",          label: t("Pie chart"),         icon: "ChartPie"   },
-          { value: "donut",        label: t("Donut chart"),       icon: "ChartDonut" },
-          { value: "area",         label: t("Area chart"),        icon: "ChartArea"  },
-          { value: "line",         label: t("Line chart"),        icon: "ChartLine"  },
-          { value: "scatter",      label: t("Scatter plot"),      icon: "ChartLine"  },
-          { value: "kaplan_meier", label: t("Kaplan-Meier plot"), icon: "ChartKaplan" },
-        ]),
-        testId("type"),
-      ),
-      dom.maybe(use => !isPieLike(use(this._section.chartTypeDef)), () => [
-        // These options don't make much sense for a pie chart.
-        cssCheckboxRowObs(t("Split series"), this._groupData),
-        cssCheckboxRow(t("Invert Y-axis"), this._optionsObj.prop("invertYAxis")),
-        cssRow(
-          cssRowLabel(t("Orientation")),
-          dom("div", linkSelect(fromKoSave(this._optionsObj.prop("orientation")), [
-            { value: "v", label: t("Vertical") },
-            { value: "h", label: t("Horizontal") },
-          ], { defaultLabel: t("Vertical") })),
-          testId("orientation"),
-        ),
-        cssCheckboxRow(t("Log scale Y-axis"), this._optionsObj.prop("logYAxis")),
-      ]),
-      dom.maybeOwned(use => use(this._section.chartTypeDef) === "donut", owner => [
-        cssSlideRow(
-          t("Hole size"),
-          Computed.create(owner, use => use(this._optionsObj.prop("donutHoleSize")) ?? DONUT_DEFAULT_HOLE_SIZE),
-          (val: number) => this._optionsObj.prop("donutHoleSize").saveOnly(val),
-          testId("option"),
-        ),
-        cssCheckboxRow(t("Show total"), this._optionsObj.prop("showTotal")),
-        dom.maybe(this._optionsObj.prop("showTotal"), () => (
-          cssNumberWithSpinnerRow(
-            t("Text size"),
-            Computed.create(owner, use => use(this._optionsObj.prop("textSize")) ??  DONUT_DEFAULT_TEXT_SIZE),
-            (val: number) => this._optionsObj.prop("textSize").saveOnly(val),
-            testId("option"),
-          )
-        )),
-      ]),
-      dom.maybe(use => use(this._section.chartTypeDef) === "line", () => [
-        cssCheckboxRow(t("Connect gaps"), this._optionsObj.prop("lineConnectGaps")),
-        cssCheckboxRow(t("Show markers"), this._optionsObj.prop("lineMarkers")),
-      ]),
-      dom.maybe(use => ["line", "bar"].includes(use(this._section.chartTypeDef)), () => [
-        cssCheckboxRow(t("Stack series"), this._optionsObj.prop("stacked")),
-        cssRow(
-          cssRowLabel(t("Error bars")),
-          dom("div", linkSelect(fromKoSave(this._optionsObj.prop("errorBars")), [
-            { value: "", label: t("None") },
-            { value: "symmetric", label: t("Symmetric") },
-            { value: "separate", label: t("Above+Below") },
-          ], { defaultLabel: t("None") })),
-          testId("error-bars"),
-        ),
-        dom.domComputed(this._optionsObj.prop("errorBars"), (value: ChartOptions["errorBars"]) =>
-          value === "symmetric" ? cssRowHelp(t("Each Y series is followed by a series for the length of error bars.")) :
-            value === "separate" ? cssRowHelp(
-              t("Each Y series is followed by two series, for top and bottom error bars."),
-            ) :
-              null,
-        ),
-      ]),
+      this._buildTypePicker(),
 
       cssSeparator(),
-
-      dom.maybe(this._groupData, () =>
-        dom("div", { "role": "group", "aria-labelledby": "chart-split-series-label" },
-          cssGroupLabel(t("Split Series"), { id: "chart-split-series-label" }),
-          cssRow(
-            select(this._groupDataColId, this._groupDataOptions),
-            testId("group-by-column"),
-          ),
-          cssHintRow(t("Create separate series for each value of the selected column.")),
-        ),
-      ),
 
       // TODO: user should select x axis before widget reach page
       dom("div", { "role": "group", "aria-labelledby": "chart-first-field-label" },
@@ -670,7 +661,13 @@ export class ChartConfig extends GrainJSDisposable {
           ),
           testId("x-axis"),
         ),
+        cssHintRow(dom.text(use => firstFieldIsLabels(use(chartType)) ?
+          t("Each value of this column becomes a slice, a point or a curve.") :
+          t("Values along the horizontal axis: dates, categories...")),
+        ),
         cssCheckboxRowObs(t("Aggregate values"), this._isValueAggregated),
+        dom.maybe(this._isValueAggregated, () =>
+          cssHintRow(t("Rows with the same value are combined, and numbers are summed."))),
       ),
 
       dom("div", { "role": "group", "aria-labelledby": "chart-series-label" },
@@ -703,9 +700,170 @@ export class ChartConfig extends GrainJSDisposable {
             testId("add-y-axis"),
           ),
         ),
+        dom.maybe(use => !isPieLike(use(chartType)), () => [
+          // This option doesn't make much sense for a pie chart.
+          cssCheckboxRowObs(t("Split series"), this._groupData),
+        ]),
       ),
 
+      dom.maybe(this._groupData, () =>
+        dom("div", { "role": "group", "aria-labelledby": "chart-split-series-label" },
+          cssGroupLabel(t("Split Series"), { id: "chart-split-series-label" }),
+          cssRow(
+            select(this._groupDataColId, this._groupDataOptions),
+            testId("group-by-column"),
+          ),
+          cssHintRow(t("Create separate series for each value of the selected column.")),
+        ),
+      ),
+
+      cssSeparator(),
+
+      dom("div", { "role": "group", "aria-labelledby": "chart-appearance-label" },
+        cssGroupLabel(t("Appearance"), { id: "chart-appearance-label" }),
+        this._buildPalettePicker(),
+        cssCheckboxRow(t("Show values"), this._optionsObj.prop("showValues"), testId("show-values")),
+        dom.maybe(is("line", "area"), () =>
+          cssCheckboxRow(t("Smooth lines"), this._optionsObj.prop("smooth"), testId("smooth"))),
+        dom.maybe(is("line", "bar", "area"), () =>
+          cssCheckboxRow(t("Stack series"), this._optionsObj.prop("stacked"))),
+        dom.maybe(use => use(chartType) !== "treemap", () => cssRow(
+          cssRowLabel(t("Legend")),
+          dom("div", linkSelect(fromKoSave(this._optionsObj.prop("legendPosition")), [
+            { value: "top", label: t("Top") },
+            { value: "bottom", label: t("Bottom") },
+            { value: "right", label: t("Right") },
+            { value: "none", label: t("Hidden") },
+          ], { defaultLabel: t("Automatic") })),
+          testId("legend"),
+        )),
+        dom.maybeOwned(is("donut"), owner => [
+          cssSlideRow(
+            t("Hole size"),
+            Computed.create(owner, use => use(this._optionsObj.prop("donutHoleSize")) ?? DONUT_DEFAULT_HOLE_SIZE),
+            (val: number) => this._optionsObj.prop("donutHoleSize").saveOnly(val),
+            testId("option"),
+          ),
+          cssCheckboxRow(t("Show total"), this._optionsObj.prop("showTotal")),
+          dom.maybe(this._optionsObj.prop("showTotal"), () => (
+            cssNumberWithSpinnerRow(
+              t("Text size"),
+              Computed.create(owner, use => use(this._optionsObj.prop("textSize")) ??  DONUT_DEFAULT_TEXT_SIZE),
+              (val: number) => this._optionsObj.prop("textSize").saveOnly(val),
+              testId("option"),
+            )
+          )),
+        ]),
+      ),
+
+      dom.maybe(use => !isPieLike(use(chartType)), () => [
+        cssSeparator(),
+        cssAdvancedToggle(
+          icon("Expand", dom.style("transform", use => use(this._showAdvanced) ? "rotate(0)" : "rotate(-90deg)")),
+          t("Advanced options"),
+          dom.on("click", () => this._showAdvanced.set(!this._showAdvanced.get())),
+          testId("advanced"),
+        ),
+        dom.maybe(this._showAdvanced, () => [
+          cssCheckboxRow(t("Invert Y-axis"), this._optionsObj.prop("invertYAxis")),
+          dom.maybe(is("line", "area", "scatter", "kaplan_meier"), () => cssRow(
+            cssRowLabel(t("Orientation")),
+            dom("div", linkSelect(fromKoSave(this._optionsObj.prop("orientation")), [
+              { value: "v", label: t("Vertical") },
+              { value: "h", label: t("Horizontal") },
+            ], { defaultLabel: t("Vertical") })),
+            testId("orientation"),
+          )),
+          cssCheckboxRow(t("Log scale Y-axis"), this._optionsObj.prop("logYAxis")),
+          dom.maybe(is("line"), () => [
+            cssCheckboxRow(t("Connect gaps"), this._optionsObj.prop("lineConnectGaps")),
+            cssCheckboxRow(t("Show markers"), this._optionsObj.prop("lineMarkers")),
+          ]),
+          dom.maybe(is("line", "bar"), () => [
+            cssRow(
+              cssRowLabel(t("Error bars")),
+              dom("div", linkSelect(fromKoSave(this._optionsObj.prop("errorBars")), [
+                { value: "", label: t("None") },
+                { value: "symmetric", label: t("Symmetric") },
+                { value: "separate", label: t("Above+Below") },
+              ], { defaultLabel: t("None") })),
+              testId("error-bars"),
+            ),
+            dom.domComputed(this._optionsObj.prop("errorBars"), (value: ChartOptions["errorBars"]) =>
+              value === "symmetric" ?
+                cssRowHelp(t("Each Y series is followed by a series for the length of error bars.")) :
+                value === "separate" ? cssRowHelp(
+                  t("Each Y series is followed by two series, for top and bottom error bars."),
+                ) :
+                  null,
+            ),
+          ]),
+        ]),
+      ]),
     ];
+  }
+
+  // A grid of visual tiles, one per kind of chart. Much easier to scan than a dropdown.
+  private _buildTypePicker() {
+    const orientation = fromKo(this._optionsObj.prop("orientation"));
+    return cssTypeGrid(
+      { "role": "radiogroup", "aria-label": t("Chart type") },
+      CHART_TYPE_TILES.map((tile) => {
+        const selected = Computed.create(null, use => use(this._chartType) === tile.type &&
+          (tile.type !== "bar" || (use(orientation) || "v") === (tile.orientation || "v")));
+        return cssTypeTile(
+          dom.autoDispose(selected),
+          { role: "radio", title: tile.help() },
+          dom.attr("aria-checked", use => String(use(selected))),
+          cssTypeTile.cls("-selected", selected),
+          dom.domComputed(fromKo(this._optionsObj.prop("palette")), palette => cssTypeThumb(
+            buildThumbnail(tile.thumb, getPaletteColors(palette, false)),
+          )),
+          cssTypeLabel(tile.label()),
+          dom.on("click", () => this._selectChartType(tile)),
+          testId("type-tile"),
+          testId(`type-${tile.id}`),
+        );
+      }),
+      testId("type"),
+    );
+  }
+
+  private async _selectChartType(tile: ChartTypeTile) {
+    await this._gristDoc.docData.bundleActions(t("switched chart type"), async () => {
+      if (this._chartType.get() !== tile.type) {
+        await this._section.chartTypeDef.saveOnly(tile.type);
+        // Pie-like charts can't split series.
+        if (isPieLike(tile.type)) {
+          await this._setGroupDataColumn("");
+          this._groupDataForce.set(false);
+        }
+      }
+      if (tile.type === "bar") {
+        const orientation = tile.orientation || "v";
+        if ((this._optionsObj.prop("orientation").peek() || "v") !== orientation) {
+          await setSaveValue(this._optionsObj.prop("orientation"), orientation);
+        }
+      }
+    });
+  }
+
+  private _buildPalettePicker() {
+    const palette = fromKo(this._optionsObj.prop("palette"));
+    return cssPaletteRow(
+      cssRowLabel(t("Colors")),
+      cssPaletteList(
+        CHART_PALETTES.map(p => cssPaletteOption(
+          { title: paletteLabel(p.id), role: "radio" },
+          cssPaletteOption.cls("-selected", use => (use(palette) || DEFAULT_PALETTE) === p.id),
+          dom.attr("aria-checked", use => String((use(palette) || DEFAULT_PALETTE) === p.id)),
+          p.light.slice(0, 4).map(color => cssPaletteSwatch(dom.style("background-color", color))),
+          dom.on("click", () => setSaveValue(this._optionsObj.prop("palette"), p.id)),
+          testId(`palette-${p.id}`),
+        )),
+      ),
+      testId("palette"),
+    );
   }
 
   private async _setXAxis(colId: string) {
@@ -1063,6 +1221,7 @@ function basicPlot(series: Series[], options: ChartOptions, dataOptions: Data): 
 
   const dataSeries = series.slice(1).map((line: Series): Data => ({
     name: getSeriesName(line, series.length > 2),
+    meta: { label: line.label },
     [axis1]: replaceEmptyLabels(series[0].values),
     [axis2]: line.values,
     [`error_${axis2}`]: errorBars.get(line),
@@ -1124,8 +1283,8 @@ export const chartTypes: { [name: string]: ChartFunc } = {
     sortByXValues(series);
     return basicPlot(series, options, {
       type: "scatter",
-      fill: "tozeroy",
-      line: { shape: "spline" },
+      ...(options.stacked ? { stackgroup: "A" } : { fill: "tozeroy" }),
+      line: { shape: (options.smooth ?? true) ? "spline" : "linear" },
     });
   },
   scatter(series: Series[], options: ChartOptions): PlotData {
@@ -1153,6 +1312,7 @@ export const chartTypes: { [name: string]: ChartFunc } = {
       data: [{
         type: "pie",
         name: getSeriesName(line, false),
+        meta: { label: line.label },
         // nulls cause JS errors when pie charts resize, so replace with blanks.
         // (a falsy value would cause plotly to show its index, like "2" which is more confusing).
         labels: replaceEmptyLabels(series[0].values),
@@ -1168,10 +1328,7 @@ export const chartTypes: { [name: string]: ChartFunc } = {
     const plotData: PlotData = chartTypes.pie(series, options, { ...dataOptions, hole });
 
     function format(val: number) {
-      if (dataOptions.totalFormatter) {
-        return dataOptions.totalFormatter.formatAny(val);
-      }
-      return String(val);
+      return formatChartValue(val, dataOptions.totalFormatter);
     }
 
     if (options.showTotal) {
@@ -1191,6 +1348,18 @@ export const chartTypes: { [name: string]: ChartFunc } = {
       plotData,
       { layout: { annotations } },
     );
+  },
+
+  funnel(series: Series[], options: ChartOptions, dataOptions: DataOptions = {}): PlotData {
+    const plotData = chartTypes.pie(series, options, dataOptions);
+    plotData.data.forEach((d) => { d.type = "funnel" as any; });
+    return plotData;
+  },
+
+  treemap(series: Series[], options: ChartOptions, dataOptions: DataOptions = {}): PlotData {
+    const plotData = chartTypes.pie(series, options, dataOptions);
+    plotData.data.forEach((d) => { d.type = "treemap" as any; });
+    return plotData;
   },
 
   kaplan_meier(series: Series[]): PlotData {
@@ -1354,5 +1523,301 @@ const cssSpinners = styled("input", `
   element */
   &[type=number]::-webkit-inner-spin-button {
     opacity: 1;
+  }
+`);
+
+const showAdvancedOptions = Observable.create(null, false);
+
+interface ChartTypeTile {
+  id: string;
+  type: string;
+  orientation?: "v" | "h";
+  label: () => string;
+  help: () => string;
+  thumb: string;
+}
+
+// The chart types shown in the picker, in order. "column" and "hbar" are both "bar" charts, with a
+// different orientation: showing them separately is more natural than an orientation option.
+const CHART_TYPE_TILES: ChartTypeTile[] = [
+  { id: "column", type: "bar", orientation: "v", thumb: "column",
+    label: () => t("Columns"), help: () => t("Compare amounts between categories") },
+  { id: "hbar", type: "bar", orientation: "h", thumb: "hbar",
+    label: () => t("Bars"), help: () => t("Compare amounts, with long category names") },
+  { id: "line", type: "line", thumb: "line",
+    label: () => t("Line"), help: () => t("Show a trend over time") },
+  { id: "area", type: "area", thumb: "area",
+    label: () => t("Area"), help: () => t("Show a trend over time, and volumes") },
+  { id: "pie", type: "pie", thumb: "pie",
+    label: () => t("Pie"), help: () => t("Show the parts of a whole") },
+  { id: "donut", type: "donut", thumb: "donut",
+    label: () => t("Donut"), help: () => t("Show the parts of a whole, with the total in the middle") },
+  { id: "funnel", type: "funnel", thumb: "funnel",
+    label: () => t("Funnel"), help: () => t("Show the steps of a process") },
+  { id: "treemap", type: "treemap", thumb: "treemap",
+    label: () => t("Treemap"), help: () => t("Show the parts of a whole, as rectangles") },
+  { id: "scatter", type: "scatter", thumb: "scatter",
+    label: () => t("Scatter"), help: () => t("Show the relation between two numbers") },
+  { id: "kaplan_meier", type: "kaplan_meier", thumb: "kaplan",
+    label: () => t("Survival"), help: () => t("Kaplan-Meier survival plot") },
+];
+
+function paletteLabel(id: string): string {
+  switch (id) {
+    case "modern": return t("Modern");
+    case "grist": return t("Grist");
+    case "ocean": return t("Ocean");
+    case "sunset": return t("Sunset");
+    case "pastel": return t("Pastel");
+    case "mono": return t("Monochrome");
+    default: return id;
+  }
+}
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function svgEl(tag: string, attrs: Record<string, string | number>): SVGElement {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) { el.setAttribute(k, String(v)); }
+  return el;
+}
+
+// Small pictogram of each chart type, drawn with the current palette.
+export function buildThumbnail(kind: string, colors: string[]): SVGElement {
+  const svg = svgEl("svg", { viewBox: "0 0 48 32", width: 48, height: 32 });
+  const add = (tag: string, attrs: Record<string, string | number>) => svg.appendChild(svgEl(tag, attrs));
+  const [c1, c2, c3, c4] = colors;
+  switch (kind) {
+    case "column":
+      [[6, 14], [16, 6], [26, 18], [36, 10]].forEach(([x, y], i) =>
+        add("rect", { x, y, width: 7, height: 30 - y, rx: 1.5, fill: i === 1 ? c2 : c1 }));
+      break;
+    case "hbar":
+      [[4, 30], [11, 20], [18, 38], [25, 14]].forEach(([y, w], i) =>
+        add("rect", { x: 4, y, width: w, height: 5, rx: 1.5, fill: i === 2 ? c2 : c1 }));
+      break;
+    case "line":
+      add("polyline", { "points": "4,24 14,16 22,20 32,8 44,12", "fill": "none", "stroke": c1, "stroke-width": 2.5,
+        "stroke-linecap": "round", "stroke-linejoin": "round" });
+      add("polyline", { "points": "4,28 14,24 22,26 32,20 44,22", "fill": "none", "stroke": c2, "stroke-width": 2.5,
+        "stroke-linecap": "round", "stroke-linejoin": "round" });
+      break;
+    case "area":
+      add("path", { d: "M4,30 L4,20 C12,10 18,22 26,14 C32,8 38,12 44,6 L44,30 Z", fill: c1, opacity: 0.35 });
+      add("path", { "d": "M4,20 C12,10 18,22 26,14 C32,8 38,12 44,6", "fill": "none", "stroke": c1,
+        "stroke-width": 2.5, "stroke-linecap": "round" });
+      break;
+    case "pie":
+    case "donut": {
+      const cx = 24; const cy = 16;
+      const parts = [0.45, 0.3, 0.25];
+      // A donut is drawn as thick arcs, a pie as filled wedges with a small gap between them.
+      const r = kind === "donut" ? 10 : 13;
+      let a0 = -Math.PI / 2;
+      parts.forEach((p, i) => {
+        const gap = 0.08;
+        const a1 = a0 + p * 2 * Math.PI;
+        const s0 = a0 + gap / 2; const s1 = a1 - gap / 2;
+        const large = p > 0.5 ? 1 : 0;
+        const arc = `M${cx + r * Math.cos(s0)},${cy + r * Math.sin(s0)} ` +
+          `A${r},${r} 0 ${large} 1 ${cx + r * Math.cos(s1)},${cy + r * Math.sin(s1)}`;
+        if (kind === "donut") {
+          add("path", { "d": arc, "fill": "none", "stroke": [c1, c2, c3][i], "stroke-width": 5.5 });
+        } else {
+          add("path", { d: `M${cx},${cy} L${arc.slice(1)} Z`, fill: [c1, c2, c3][i] });
+        }
+        a0 = a1;
+      });
+      break;
+    }
+    case "funnel":
+      [[4, 40], [9, 30], [14, 20], [19, 10]].forEach(([y, w], i) =>
+        add("rect", { x: 24 - w / 2, y: 3 + i * 7, width: w, height: 5.5, rx: 1.5, fill: [c1, c2, c3, c4][i] }));
+      break;
+    case "treemap":
+      add("rect", { x: 4, y: 3, width: 22, height: 26, rx: 2, fill: c1 });
+      add("rect", { x: 27.5, y: 3, width: 16.5, height: 14, rx: 2, fill: c2 });
+      add("rect", { x: 27.5, y: 18.5, width: 8, height: 10.5, rx: 2, fill: c3 });
+      add("rect", { x: 37, y: 18.5, width: 7, height: 10.5, rx: 2, fill: c4 });
+      break;
+    case "scatter":
+      [[8, 24, c1], [14, 18, c1], [20, 21, c2], [26, 12, c1], [32, 15, c2], [38, 7, c1], [42, 11, c2]]
+        .forEach(([cx, cy, fill]) => add("circle", { cx, cy, r: 2.8, fill }));
+      break;
+    case "kaplan":
+      add("polyline", { "points": "4,5 12,5 12,10 20,10 20,15 30,15 30,21 44,21", "fill": "none", "stroke": c1,
+        "stroke-width": 2.5, "stroke-linejoin": "round" });
+      add("polyline", { "points": "4,5 9,5 9,14 18,14 18,22 26,22 26,27 44,27", "fill": "none", "stroke": c2,
+        "stroke-width": 2.5, "stroke-linejoin": "round" });
+      break;
+  }
+  return svg;
+}
+
+const cssChartCanvas = styled("div", `
+  position: absolute;
+  inset: 0;
+`);
+
+const cssEmptyState = styled("div", `
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  text-align: center;
+  background-color: ${theme.mainPanelBg};
+  z-index: 1;
+`);
+
+const cssEmptyIllustration = styled("div", `
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 56px;
+  margin-bottom: 8px;
+  & > div:nth-child(2) { background-color: ${theme.controlFg}; opacity: 0.55; }
+`);
+
+const cssEmptyBar = styled("div", `
+  width: 14px;
+  border-radius: 4px 4px 0 0;
+  background-color: ${theme.controlFg};
+  opacity: 0.3;
+  animation: chart-empty-grow 1.6s ease-in-out infinite alternate;
+  transform-origin: bottom;
+  @keyframes chart-empty-grow {
+    from { transform: scaleY(0.7); }
+    to { transform: scaleY(1); }
+  }
+`);
+
+const cssEmptyTitle = styled("div", `
+  font-size: 16px;
+  font-weight: 600;
+  color: ${theme.text};
+`);
+
+const cssEmptyText = styled("div", `
+  max-width: 320px;
+  color: ${theme.lightText};
+  line-height: 1.5;
+`);
+
+const cssEmptyButton = styled(unstyledButton, `
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-weight: 600;
+  color: ${theme.controlPrimaryFg};
+  background-color: ${theme.controlPrimaryBg};
+  --icon-color: ${theme.controlPrimaryFg};
+  cursor: pointer;
+  &:hover {
+    background-color: ${theme.controlPrimaryHoverBg};
+  }
+`);
+
+const cssTypeGrid = styled("div", `
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+  gap: 6px;
+  margin: 8px 16px 12px 16px;
+`);
+
+const cssTypeTile = styled("div", `
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 2px 5px 2px;
+  border: 1px solid ${theme.pagePanelsBorder};
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.15s, background-color 0.15s, transform 0.15s;
+  &:hover {
+    border-color: ${theme.controlFg};
+    transform: translateY(-1px);
+  }
+  &-selected, &-selected:hover {
+    border-color: ${theme.controlFg};
+    background-color: ${theme.lightHover};
+    box-shadow: inset 0 0 0 1px ${theme.controlFg};
+  }
+`);
+
+const cssTypeThumb = styled("div", `
+  display: flex;
+  height: 26px;
+  & > svg { display: block; width: 40px; height: 26px; }
+`);
+
+const cssTypeLabel = styled("div", `
+  font-size: ${vars.smallFontSize};
+  color: ${theme.text};
+  text-align: center;
+  line-height: 1.2;
+  .${cssTypeTile.className}-selected & {
+    font-weight: 600;
+  }
+`);
+
+const cssPaletteRow = styled(cssRow, `
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  & > :first-child {
+    flex: none;
+  }
+`);
+
+const cssPaletteList = styled("div", `
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+`);
+
+const cssPaletteOption = styled("div", `
+  display: flex;
+  padding: 3px;
+  border-radius: 6px;
+  border: 1px solid ${theme.pagePanelsBorder};
+  cursor: pointer;
+  &:hover {
+    border-color: ${theme.controlFg};
+  }
+  &-selected, &-selected:hover {
+    border-color: ${theme.controlFg};
+    box-shadow: inset 0 0 0 1px ${theme.controlFg};
+  }
+`);
+
+const cssPaletteSwatch = styled("div", `
+  width: 8px;
+  height: 14px;
+  &:first-child { border-radius: 3px 0 0 3px; }
+  &:last-child { border-radius: 0 3px 3px 0; }
+`);
+
+const cssAdvancedToggle = styled(unstyledButton, `
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 8px 16px;
+  font-weight: 600;
+  font-size: ${vars.xsmallFontSize};
+  text-transform: uppercase;
+  color: ${theme.lightText};
+  --icon-color: ${theme.lightText};
+  cursor: pointer;
+  &:hover {
+    color: ${theme.text};
   }
 `);

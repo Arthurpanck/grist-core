@@ -1,6 +1,6 @@
 import { UserAPI } from "app/common/UserAPI";
 import { addYAxis, checkAxisConfig, checkAxisRange, findYAxis, getAxisTitle, getChartData,
-  removeYAxis, selectChartType, selectXAxis,
+  getSelectedChartType, openAdvancedOptions, removeYAxis, selectChartType, selectXAxis,
   setSplitSeries } from "test/nbrowser/chartViewTestUtils";
 import * as gu from "test/nbrowser/gristUtils";
 import { setupTestSuite } from "test/nbrowser/testUtils";
@@ -53,9 +53,7 @@ describe("ChartView1", function() {
     // Invert the chart.
     await gu.selectSectionByTitle("Text Chart");
     await gu.toggleSidePanel("right", "open");
-    await driver.find(".test-chart-orientation .test-select-open").click();
-    await gu.findOpenMenuItem("li", "Horizontal").click();
-    await gu.waitForServer();
+    await selectChartType("Horizontal bar chart");
     assert.deepEqual((await layout()).yaxis.type, "category");
     assert.deepEqual((await layout()).xaxis.type, "linear");
 
@@ -260,7 +258,7 @@ describe("ChartView1", function() {
     assert.deepEqual(data[1].y, [61, 5, 4, 3, 1]);
 
     // Check that the scales are correct for the new values.
-    checkAxisRange(await getChartData(chartDom), 5.5, 60.5, 0, 61);
+    checkAxisRange(await getChartData(chartDom), 5.5, 60.5, 0, 70);
 
     // select 'label' as x axis
     await selectXAxis("label");
@@ -299,7 +297,7 @@ describe("ChartView1", function() {
     assert.deepEqual(data[0].type, "scatter");
     assert.deepEqual(data[0].line!.shape, "spline");
     assert.deepEqual(data[0].fill, "tozeroy");
-    assert.equal(await driver.find(".test-chart-type").getText(), "Area chart");
+    assert.equal(await getSelectedChartType(), "Area chart");
 
     // Make sure first field of scatter plot is marked label, not x-axis.
     await selectChartType("Scatter plot");
@@ -353,7 +351,7 @@ describe("ChartView1", function() {
     });
 
     // check chart type
-    assert.equal(await driver.find(".test-chart-type").getText(), "Area chart");
+    assert.equal(await getSelectedChartType(), "Area chart");
   });
 
   it("should support Y-axis options", async function() {
@@ -363,6 +361,7 @@ describe("ChartView1", function() {
       checkAxisRange(await getChartData(chartDom), 0.5, 61.5, 0, 57);
     });
 
+    await openAdvancedOptions();
     await driver.findContent("label", /Invert Y-axis/).find("input").click();
     await gu.waitForServer();
     await gu.waitToPass(async () => {
@@ -374,7 +373,7 @@ describe("ChartView1", function() {
     await driver.findContent("label", /Log scale Y-axis/).find("input").click();
     await gu.waitForServer();
     await gu.waitToPass(async () => {
-      checkAxisRange(await getChartData(chartDom), 0.5, 61.5, 0.22, 1.82);
+      checkAxisRange(await getChartData(chartDom), 0.5, 61.5, 0, 2);
     });
 
     await gu.undo(4);
@@ -383,7 +382,7 @@ describe("ChartView1", function() {
         xaxis: "label",
         yaxis: ["largeValue", "value"],
       });
-      assert.equal(await driver.find(".test-chart-type").getText(), "Area chart");
+      assert.equal(await getSelectedChartType(), "Area chart");
     });
   });
 
@@ -443,7 +442,7 @@ describe("ChartView1", function() {
         xaxis: "label",
         yaxis: ["largeValue", "value"],
       });
-      assert.equal(await driver.find(".test-chart-type").getText(), "Area chart");
+      assert.equal(await getSelectedChartType(), "Area chart");
     });
   });
 
@@ -547,7 +546,7 @@ describe("ChartView1", function() {
       xaxis: "label",
       yaxis: ["largeValue", "value"],
     });
-    assert.equal(await driver.find(".test-chart-type").getText(), "Pie chart");
+    assert.equal(await getSelectedChartType(), "Pie chart");
 
     // undo
     await gu.undo(2);
@@ -556,7 +555,7 @@ describe("ChartView1", function() {
       xaxis: "label",
       yaxis: ["largeValue", "value"],
     });
-    assert.equal(await driver.find(".test-chart-type").getText(), "Line chart");
+    assert.equal(await getSelectedChartType(), "Line chart");
   });
 
   it("should render dates properly on X-axis", async function() {
@@ -615,6 +614,7 @@ describe("ChartView1", function() {
     await checkAxisConfig({ xaxis: "MyDate", yaxis: ["largeValue", "value"] });
 
     // Symmetric error bars should leave only the largeValue series, with 'value' for error bars.
+    await openAdvancedOptions();
     await driver.find(".test-chart-error-bars .test-select-open").click();
     await gu.findOpenMenuItem("li", /Symmetric/).click();
     await gu.waitForServer();
@@ -694,7 +694,7 @@ describe("ChartView1", function() {
 
     // Add a chart section.
     await gu.addNewSection(/Chart/, /ChartData/);
-    const chart = await driver.findWait(".viewsection_content .svg-container", 1000);
+    const chart = await driver.findWait(".viewsection_content .test-chart-canvas svg", 3000);
     const initialRect = await chart.getRect();
     // We expect the left panel open initially.
     assert.equal(await gu.isSidePanelOpen("left"), true);
@@ -726,6 +726,7 @@ describe("ChartView1", function() {
     await removeYAxis("value");
 
     // Invert the y-axis. (This is meant to trigger js errors if the bug is present)
+    await openAdvancedOptions();
     await driver.findContent("label", /Invert Y-axis/).find("input").click();
     await gu.waitForServer();
 
