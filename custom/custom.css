@@ -258,10 +258,11 @@
 
 
 /* ============================================================================
- * 6. AJOUTS : masquer la carte Webinaires et le Centre d'aide
+ * 6. AJOUTS : masquer la carte Webinaires, le Centre d'aide et Automatisations
  * ========================================================================= */
 .test-intro-webinars,               /* carte Webinaires (accueil) */
 .test-intro-help-center,            /* carte Centre d'aide (accueil) */
-div:has(> .test-left-feedback) {    /* lien Centre d'aide (menu de gauche + Outils) */
+div:has(> .test-left-feedback),     /* lien Centre d'aide (menu de gauche + Outils) */
+.test-tools-automations {           /* Automatisations (panneau Outils des documents) */
   display: none !important;
 }
