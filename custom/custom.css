@@ -258,31 +258,10 @@
 
 
 /* ============================================================================
- * 6. AJOUTS : masquer des éléments de Grist
- *    Règles hors @layer, avec !important : elles passent devant le style de Grist.
- *    Masquer en CSS ne supprime pas l'élément : custom.js peut toujours s'en
- *    servir comme modèle. Ne PAS utiliser GRIST_HIDE_UI_ELEMENTS=helpCenter
- *    à la place (les boutons ajoutés par custom.js disparaîtraient).
+ * 6. AJOUTS : masquer la carte Webinaires et le Centre d'aide
  * ========================================================================= */
-
-/* Accueil : carte « Webinaires » */
-.test-intro-webinars {
+.test-intro-webinars,               /* carte Webinaires (accueil) */
+.test-intro-help-center,            /* carte Centre d'aide (accueil) */
+div:has(> .test-left-feedback) {    /* lien Centre d'aide (menu de gauche + Outils) */
   display: none !important;
 }
-
-/* Centre d'aide (optionnel) : pour le masquer, retirer le commentaire des 2 lignes.
-   1re ligne : carte de l'accueil.
-   2e ligne  : lien du menu de gauche (accueil) ET du panneau Outils (documents).
-   Les boutons ajoutés par custom.js restent affichés. */
-/* .test-intro-help-center { display: none !important; } */
-/* div:has(> .test-left-feedback) { display: none !important; } */
-
-/* Documents (optionnel) : masquer des entrées du panneau « Outils ».
-   Masque seulement l'entrée du menu : la page reste accessible par son URL. */
-/* .test-tools-assistant, div:has(> .test-tools-assistant) { display: none !important; } */
-/* .test-tools-access-rules   { display: none !important; } */
-/* div:has(> .test-tools-raw) { display: none !important; } */
-/* div:has(> .test-tools-log) { display: none !important; } */
-/* .test-tools-code           { display: none !important; } */
-/* .test-tools-automations    { display: none !important; } */
-/* .test-tools-settings       { display: none !important; } */
