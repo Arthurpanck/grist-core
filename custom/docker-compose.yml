@@ -23,6 +23,9 @@ services:
       # (clé affichée dans les logs). Mettre à true pour passer directement en service.
       - GRIST_IN_SERVICE=true
 
+      # Masque « Importer depuis Airtable » (menu Ajouter de l'accueil + import dans un document)
+      - GRIST_HIDE_UI_ELEMENTS=importFromAirtable
+
       # Ne PAS ajouter GRIST_HIDE_UI_ELEMENTS=helpCenter : custom.js a besoin du
       # Centre d'aide comme modèle. Les cartes se masquent dans custom.css.
 
