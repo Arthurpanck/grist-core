@@ -258,11 +258,12 @@
 
 
 /* ============================================================================
- * 6. AJOUTS : masquer la carte Webinaires, le Centre d'aide et Automatisations
+ * 6. AJOUTS : masquer la carte Webinaires, le Centre d'aide, Automatisations et « Créez le vôtre »
  * ========================================================================= */
 .test-intro-webinars,               /* carte Webinaires (accueil) */
 .test-intro-help-center,            /* carte Centre d'aide (accueil) */
 div:has(> .test-left-feedback),     /* lien Centre d'aide (menu de gauche + Outils) */
-.test-tools-automations {           /* Automatisations (panneau Outils des documents) */
+.test-tools-automations,            /* Automatisations (panneau Outils des documents) */
+.test-wselect-type:has(.test-wselect-new-badge) { /* « Créez le vôtre » (choix du widget) */
   display: none !important;
 }
